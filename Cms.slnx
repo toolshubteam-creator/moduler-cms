@@ -1,0 +1,10 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/Cms.Abstractions/Cms.Abstractions.csproj" />
+    <Project Path="src/Cms.Core/Cms.Core.csproj" />
+    <Project Path="src/Cms.Web/Cms.Web.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/Cms.Tests/Cms.Tests.csproj" />
+  </Folder>
+</Solution>
