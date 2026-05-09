@@ -105,10 +105,12 @@ CRM_Leads, CRM_Contacts
 ### Kural 9: Auth ve veri modeli
 
 - Auth tablolari Master DB'de (`Sys_` prefix: `Sys_Users`, `Sys_Roles`, `Sys_UserRoles`, `Sys_Permissions`, `Sys_RolePermissions`, `Sys_Tenants`)
-- Multi-tenancy: `Sys_UserRoles.TenantId` nullable; null = global rol, dolu = tenant-spesifik rol
+- Multi-tenancy: `Sys_UserRoles` surrogate int `Id` PK + `(UserId, RoleId, TenantId)` UNIQUE INDEX. `TenantId` nullable; null = global rol, dolu = tenant-spesifik rol. MySQL'de NULL ≠ NULL semantigi unique index'i bozmaz (ayni user ayni role'u birden cok kez global atayamaz, ama global + tenant-A + tenant-B bir arada olabilir).
 - `Tenant.Id` Guid (subdomain/path'te gorunecek), digerleri int auto-increment
 - Sifre: PBKDF2-SHA256, 100k iter, 16 byte salt, 32 byte hash, format `"iter.salt_b64.hash_b64"`
 - ASP.NET Core Identity KULLANILMIYOR; kendi `IUserService` ve `IPasswordHasher`
+- Cookie auth: `AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme).AddCookie(...)`; Login/Logout/AccessDenied path'leri `/Account/Login` ve `/Account/Logout`. Production cookie politikalari (SameSite, Secure, ExpireTimeSpan) Faz-7'de tunelenecek.
+- Dev admin seed: `Auth:DefaultAdmin` config'i ile yalniz `IsDevelopment()` iken calisir. Production'da bu seed kapanir; ilk admin /setup wizard ile yaratilacak (Faz-7).
 
 ## Code Style
 
@@ -127,6 +129,8 @@ CRM_Leads, CRM_Contacts
 - CI/PR ve commit oncesi: `dotnet build -c Release` ile dogrula
 - Yerel gelistirme Debug'da serbest (analyzer noise'i sadece Release'de hata)
 - AnalysisMode: Default (correctness-oncelikli; performance-oncelikli kurallar suggestion seviyesinde, tek tek opt-in)
+- EF Core migration dosyalari `Data/Migrations/` altinda block-style namespace kullanir; `.editorconfig` IDE0161'i bu klasor icin gevsetir. Auto-generated dosyalari **manuel duzeltme** — sadece migration adimi sirasinda gercek hatayi (FK drop sirasi, vb.) duzeltmek icin elle dokunulur.
+- `src/Cms.Web/Directory.Build.targets` Cms.Web.csproj'a `Cms.Modules.*` prefix'li ProjectReference eklenmesini build-time'da reddeder (CLAUDE.md Kural 1, Kural 2 enforcement). Kural 4'teki tablo prefix konvansiyonuna paralel.
 
 ## Komutlar
 
@@ -139,6 +143,7 @@ CRM_Leads, CRM_Contacts
 | Format | `dotnet format` |
 | Migration ekle (master) | `dotnet ef migrations add <Name> --project src/Cms.Core --startup-project src/Cms.Web --output-dir Data/Migrations` |
 | Migration uygula | `dotnet ef database update --project src/Cms.Core --startup-project src/Cms.Web` |
+| Default admin (Dev) | `appsettings.Development.json` -> `Auth:DefaultAdmin` (Email/Password). Sadece IsDevelopment() iken seed olur. |
 
 ## Solution Dosyasi
 

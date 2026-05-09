@@ -4,7 +4,7 @@
 > Geçmiş kayıt değil — gelecek-bakışlı.
 > Her adım başında okunur, sonunda güncellenir.
 
-**Son güncelleme:** Faz-1.3 — D-003 kapatildi (manuel csproj yazimi), D-005 ve D-006 eklendi.
+**Son güncelleme:** Faz-1.5 — D-001 kapatildi (Cms.Web Directory.Build.targets guard); D-007/D-008/D-009 eklendi (Faz-7 production hardening); D-010 eklendi (Login E2E Windows reverse-DNS quirk).
 
 ---
 
@@ -24,11 +24,6 @@ ID formatı: `D-001`, `D-002`... (sıralı, silinince ID tekrar kullanılmaz)
 ---
 
 ## Aktif Ertelemeler
-
-### D-001 — Cms.Web → Cms.Modules.* referans guard
-**Bağlam:** Kural 2 derleme zamaninda otomatik enforce edilmiyor; MSBuild target ile referans engelleyici eklenmeli.
-**Tetik:** Faz-1.3 (ModuleLoader yazilirken)
-**Eklenme:** Faz-1.1
 
 ### D-002 — Hangfire MySQL paket secimi
 **Bağlam:** Hangfire.MySqlStorage ana paketinde concurrency bug'lari var; Hangfire.Storage.MySql forku index fix'leri ile geliyor. Hangi paketle gidilecegi background job kullanmaya basladigimizda kararlastirilmali.
@@ -50,23 +45,43 @@ ID formatı: `D-001`, `D-002`... (sıralı, silinince ID tekrar kullanılmaz)
 **Tetik:** Faz-8 (production hardening)
 **Eklenme:** Faz-1.3
 
+### D-007 — Account lockout + rate limiting
+**Bağlam:** Faz-1.5'te login sade tutuldu. Production'da 5 hatali deneme sonrasi lockout, IP basina rate limit gerek.
+**Tetik:** Faz-7 (production hardening)
+**Eklenme:** Faz-1.5
+
+### D-008 — Production setup wizard (ilk admin)
+**Bağlam:** Dev'de SeedDevAdminAsync ile ilk admin olusur. Production'da bu calismaz; ilk kurulumda /setup wizard ya da CLI komutu gerek.
+**Tetik:** Faz-7 (production hardening)
+**Eklenme:** Faz-1.5
+
+### D-009 — Cookie auth politika tuning
+**Bağlam:** Default 14 gun sliding cookie, secure=auto. Production'da SameSite, Secure, ExpireTimeSpan, SlidingExpiration bilincli ayarlanmali.
+**Tetik:** Faz-7 (production hardening)
+**Eklenme:** Faz-1.5
+
+### D-010 — Login E2E test (Windows reverse-DNS quirk)
+**Bağlam:** Faz-1.5'te `WebApplicationFactory<Program>` + Testcontainers MySQL kombinasyonu Windows host'ta `Host 'EXERT_2024_01' is not allowed` hatasi verdi. UserService unit testleri ayni container ile calisiyor — sorun Web host'un MySQL baglanti path'i ile sinirli, MySQL reverse-DNS Windows machine name'i `mysql.user` tablosundaki host eslesmesini bozuyor. 4 fix denendi (127.0.0.1 zorlama, --skip-name-resolve flag, manuel root GRANT, vs.) — tutmadi. Manuel UI ile login akisi (form, hatali parola, basarili login + cookie, logout) sirayla dogrulandi. AccountControllerLoginTests.cs silindi; Microsoft.AspNetCore.Mvc.Testing paketi ve Cms.Tests -> Cms.Web ProjectReference kaldi (Linux CI'da geri donecek).
+**Tetik:** Linux CI/CD eklendiginde (Faz-7 production hardening) — Linux runner'da reverse-DNS sorunu yok, test direkt yesil donecek.
+**Eklenme:** Faz-1.5
+
 ---
 
 ## Faz Bazlı Tetik Tablosu
 
 | Tetik Faz | Bekleyen Madde Sayısı |
 |---|---|
-| Faz-1 | 1 (D-001) |
+| Faz-1 | 0 |
 | Faz-2 | 1 (D-005) |
 | Faz-3 | 1 (D-002, alternatif Faz-6) |
 | Faz-4 | 0 |
 | Faz-5 | 0 |
 | Faz-6 | 0 |
-| Faz-7 | 0 |
+| Faz-7 | 4 (D-007, D-008, D-009, D-010) |
 | Faz-8 | 1 (D-006) |
 | v2 | 1 (D-004) |
 
-**Toplam aktif:** 5
+**Toplam aktif:** 8
 
 ---
 
@@ -74,6 +89,10 @@ ID formatı: `D-001`, `D-002`... (sıralı, silinince ID tekrar kullanılmaz)
 
 > Buraya **silinmez**, kapatma sırasında PROGRESS.md "Yapılanlar" bölümüne taşınır.
 > Bu bölüm sadece bir referans olarak boş kalır — gerçek arşiv PROGRESS.md'dedir.
+
+### D-001 — Cms.Web → Cms.Modules.* referans guard
+**Kapatildi:** Faz-1.5
+**Cozum:** `src/Cms.Web/Directory.Build.targets` icine MSBuild target eklendi (`GuardAgainstModuleProjectReferences`). Cms.Web.csproj'a `Cms.Modules.*` prefix'li ProjectReference eklenmesi build-time'da hata firlatir. Negatif test ile dogrulandi (sahte `Cms.Modules.Fake` ref eklendi -> build fail; ref kaldirildi -> build yesil).
 
 ---
 

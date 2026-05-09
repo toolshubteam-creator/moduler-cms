@@ -3,7 +3,7 @@
 > Bu dosya **canlı** durum dosyasıdır. Her adım sonunda güncellenir.
 > Sade tutuyoruz; detaylı task listesi her fazın açılışında konuşulup üretilir.
 
-**Son güncelleme:** Faz-1.4 (Auth tablolari + hashing) — DONE
+**Son güncelleme:** Faz-1.5 (Auth login/logout) — DONE · **Faz-1 KAPANDI**
 
 ---
 
@@ -12,8 +12,8 @@
 | Faz | Tema | Süre Hedefi | Durum |
 |---|---|---|---|
 | **Faz-0** | Repo + doküman seti kurulumu | 1 gün | 🟢 DONE |
-| **Faz-1** | Çekirdek temel (IModule, ModuleLoader, Auth) | 2 hafta | 🟡 IN-PROGRESS |
-| **Faz-2** | Multi-tenancy + RBAC | 2 hafta | ⚪ TODO |
+| **Faz-1** | Çekirdek temel (IModule, ModuleLoader, Auth) | 2 hafta | 🟢 DONE |
+| **Faz-2** | Multi-tenancy + RBAC | 2 hafta | 🟡 NEXT |
 | **Faz-3** | Generic CRUD + Audit | 2 hafta | ⚪ TODO |
 | **Faz-4** | Media + SEO + Settings (3 çekirdek modül) | 2 hafta | ⚪ TODO |
 | **Faz-5** | Blog modülü (full, referans modül) | 2 hafta | ⚪ TODO |
@@ -25,11 +25,11 @@
 
 ---
 
-## Aktif Faz: Faz-1 — Çekirdek temel
+## Aktif Faz: Faz-2 — Multi-tenancy + RBAC
 
-**Hedef:** IModule kontratini, ModuleLoader'i, Auth tablolari + login akisini hazirlamak. Solution iskeleti Faz-1.1'de kuruldu.
+**Hedef:** Tenant resolver (subdomain bazli), RBAC (rol ve permission kontrolu), TenantDbContext factory, ilk tenant yaratma akisi. Faz-1.5'te hazirlanan IUserService ve cookie auth uzerine kurulacak.
 
-### Faz-1 Adımları
+### Faz-1 Adımları (KAPANDI)
 
 | Adım | Başlık | Durum |
 |---|---|---|
@@ -37,12 +37,13 @@
 | 1.2 | IModule kontrati (Cms.Abstractions) ve Manifest tipleri | 🟢 DONE |
 | 1.3 | ModuleLoader (DLL discovery + reflection) | 🟢 DONE |
 | 1.4 | Auth tablolari ve hashing | 🟢 DONE |
-| 1.5 | Auth login/logout MVC controller | ⚪ TODO |
+| 1.5 | Auth login/logout MVC controller | 🟢 DONE |
 
 ---
 
 ## Yapılanlar (kronolojik, en yeni üstte)
 
+- **Faz-1.5** (commit: `de44a9b`): IUserService + UserService + AuthenticationResult + AccountController (Login GET/POST + Logout) + LoginViewModel + minimal Razor view'lar (_ViewImports/_ViewStart/_Layout/Account/Login) + cookie authentication (`AddCookie`, /Account/Login path) + dev admin seed (Auth:DefaultAdmin) + Auth:DefaultAdmin appsettings.Development.json + 4 UserService Testcontainers integration testi. **FIX-01:** Login E2E (WebApplicationFactory + Testcontainers MySQL) Windows reverse-DNS quirk ile patladi (4 fix denendi, tutmadi); test silindi, manuel UI ile dogrulandi (form, hatali parola error, basarili login + cookie, logout cookie iptal). DEFERRED.md D-010 olarak Faz-7'ye yazildi. **FIX-02:** Faz-1.4'teki UserRole composite PK (UserId, RoleId, TenantId?) EF Core nullable composite key kuralinda Add'i reddetti — surrogate int Id PK + (UserId, RoleId, TenantId) UNIQUE INDEX ile fix; yeni migration `FixUserRolePrimaryKey`, FK drop sirasi manuel duzeltildi. **FIX-03:** D-001 kapandi — `src/Cms.Web/Directory.Build.targets` ile Cms.Web -> Cms.Modules.* ProjectReference build-time guard, negatif test ile dogrulandi. Toplam 29 test yesil.
 - **Faz-1.4** (commit: `b7f8c2d`): MasterDbContext + 6 entity (User/Role/UserRole/Permission/RolePermission/Tenant, Sys_ prefix) + Pbkdf2PasswordHasher (PBKDF2-SHA256, 100k iter, "iter.salt_b64.hash_b64" format) + AddCmsMaster DI extension + InitialAuth migration + 6 hasher unit testi + 3 MasterDbContext integration testi (Testcontainers MySQL 8.0). appsettings.Development.json git takibinden cikarildi, .gitignore'a eklendi. .editorconfig'e EF auto-generated migration dosyalari icin IDE0161 override'i eklendi. Toplam 25 test yesil.
 - **Faz-1.3** (commit: `3bd6444`): ModuleLoader + ModuleLoadContext (collectible AssemblyLoadContext) + ModuleDependencyResolver (topological sort, cycle/version/missing-dep validation) + ModuleHostExtensions (AddCmsModules/MapCmsModules/InstallCmsModulesAsync) + Cms.Tests.FakeModule integration helper + 9 yeni test (7 resolver unit + 2 loader integration). AnalysisMode Recommended->Default geri alindi (CA1848/CA1873 performans kurallari suggestion seviyesinde).
 - **Faz-1.2** (commit: `c976f3b`): IModule + opsiyonel arayuzler (IHasEntities/Endpoints/Permissions/MenuItems) + ModuleBase + ModuleManifest/Dependency + Permission/Menu deger object'leri + 7 value object testi. Cms.Abstractions FrameworkReference Microsoft.AspNetCore.App ile baglandi.
@@ -53,7 +54,12 @@
 
 ## Sıradaki
 
-- **Faz-1.5:** Auth login/logout MVC controller — IUserService, login formu, cookie auth, session/logout. Faz-1.4'de hazirlanan Pbkdf2PasswordHasher ve User entity'si uzerine kurulacak.
+- **Faz-2.1:** Tenant resolver (subdomain → Tenant entity) middleware + ITenantContext scope.
+- **Faz-2.2:** TenantDbContext factory (her tenant icin ayri MySQL connection), Master/Tenant DB ayrimi runtime'da.
+- **Faz-2.3:** RBAC: Permission system, [HasPermission] attribute, role assignment UI/API.
+- **Faz-2.4:** Tenant CRUD + ilk tenant olusturma akisi.
+
+> Faz-2 detayli plani Faz-2.1 baslangicinda konusulup uretilecek.
 
 ---
 
