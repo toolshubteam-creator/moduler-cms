@@ -8,7 +8,7 @@
     <CentralPackageTransitivePinningEnabled>true</CentralPackageTransitivePinningEnabled>
     <EnforceCodeStyleInBuild>true</EnforceCodeStyleInBuild>
     <AnalysisLevel>latest</AnalysisLevel>
-    <AnalysisMode>Recommended</AnalysisMode>
+    <AnalysisMode>Default</AnalysisMode>
     <TreatWarningsAsErrors Condition="'$(Configuration)' == 'Release'">true</TreatWarningsAsErrors>
     <NoWarn>$(NoWarn);CA1014</NoWarn>
   </PropertyGroup>

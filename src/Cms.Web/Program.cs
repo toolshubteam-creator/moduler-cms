@@ -1,4 +1,5 @@
 using System.Globalization;
+using Cms.Core.Modules;
 using Serilog;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -13,7 +14,11 @@ builder.Host.UseSerilog((context, services, configuration) =>
 
 builder.Services.AddControllersWithViews();
 
+var modules = builder.Services.AddCmsModules(builder.Configuration);
+
 var app = builder.Build();
+
+await modules.InstallCmsModulesAsync();
 
 if (!app.Environment.IsDevelopment())
 {
@@ -25,6 +30,8 @@ app.UseHttpsRedirection();
 app.UseStaticFiles();
 app.UseRouting();
 app.UseAuthorization();
+
+app.MapCmsModules(modules);
 
 app.MapControllerRoute(
     name: "default",

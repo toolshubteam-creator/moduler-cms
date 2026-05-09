@@ -25,4 +25,11 @@
     <ProjectReference Include="..\..\src\Cms.Abstractions\Cms.Abstractions.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <None Include="..\Cms.Tests.FakeModule\bin\$(Configuration)\$(TargetFramework)\Cms.Tests.FakeModule.dll">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <Link>Cms.Tests.FakeModule.dll</Link>
+    </None>
+  </ItemGroup>
+
 </Project>
