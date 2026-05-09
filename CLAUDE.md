@@ -1,0 +1,154 @@
+# CLAUDE.md — Proje Anayasası
+
+> Bu dosya projenin **mimari ve teknik kurallarını** tanımlar.
+> İletişim ve süreç kuralları için **WORKING_STYLE.md**'ye bakın.
+> Mevcut durum için **PROGRESS.md**'ye, ertelenen işler için **DEFERRED.md**'ye bakın.
+
+## Proje Misyonu
+
+Müşteri projelerinde sıfırdan yazmak yerine modüler olarak hızlı kurulan, plug-in mimarili bir CMS. Her yeni müşteri projesi için aynı kod tabanı kullanılır; modüller runtime'da DLL olarak yüklenir; müşteriye özel ihtiyaçlar müşteri-spesifik modül DLL'leri ile karşılanır.
+
+**Başarı kriteri:** Yeni bir müşteri talebi geldiğinde, mevcut modüllerden seçim yaparak veya yeni bir modül DLL'i yazarak — çekirdeği değiştirmeden — proje teslim edebilmek.
+
+## Tech Stack (PIN — değiştirme önerme)
+
+| Katman | Seçim | Sürüm | Notlar |
+|---|---|---|---|
+| Framework | .NET LTS | net10.0 | Kasım 2028'e kadar destekli |
+| Dil | C# | 14 | nullable enabled, ImplicitUsings enabled |
+| Web | ASP.NET Core | 10.0.x | MVC + Minimal API hibrit |
+| ORM | EF Core | 9.0.0 | Pomelo .NET 10 / EF Core 10'u henüz tam desteklemiyor |
+| MySQL Provider | Pomelo.EntityFrameworkCore.MySql | 9.0.0 | EF Core 10'a geçiş Pomelo stabilize olunca |
+| DB | MySQL | 8.x | utf8mb4_0900_ai_ci collation |
+| Mediator | MediatR | 12.4.x | Event bus + handler dispatch |
+| Validation | FluentValidation | 11.10.x | Attribute kirliliği yok |
+| Mapping | Mapster | 7.4.x | AutoMapper YERİNE |
+| Logging | Serilog.AspNetCore | 8.0.x | Console + File sink |
+| Background | Hangfire + Hangfire.MySqlStorage | 1.8.x / 2.0.x | Job dashboard /admin/jobs |
+| Test | xUnit + FluentAssertions + Testcontainers | latest | Gerçek MySQL ile entegrasyon testi |
+| IDE | VS Code + C# Dev Kit | latest | Visual Studio 2022/2026 değil |
+| AI Asistanı | Claude Code | v2.1.111+ | Terminal-first iş akışı |
+
+## Mimari Kuralları (HARD — bozma)
+
+### Kural 1: Çekirdek hiçbir modülün adını bilmez
+
+`Cms.Core` ve `Cms.Web` projelerinde `BlogModule`, `ECommerceModule` gibi modül adları **asla** geçmez. Çekirdek sadece `IModule` interface'ini tanır.
+
+```csharp
+// YANLIŞ
+if (module is BlogModule blog) { ... }
+
+// DOĞRU
+foreach (var module in _modules) {
+    module.RegisterServices(services, config);
+}
+```
+
+### Kural 2: Cms.Web modüllere doğrudan referans veremez
+
+Modüller runtime'da DLL olarak yüklenir, derleme zamanında değil.
+
+```bash
+# YASAK
+dotnet add src/Cms.Web/Cms.Web.csproj reference src/Modules/Cms.Modules.Blog/Cms.Modules.Blog.csproj
+```
+
+### Kural 3: Her modül IModule implement eder
+
+Bir modül kendini şu yöntemlerle tanıtır:
+- `Manifest` — kimliği, sürümü, bağımlılıkları
+- `RegisterServices` — DI kayıtları
+- `RegisterEntities` — EF Core entity konfigürasyonları
+- `MapEndpoints` — route'ları
+- `GetPermissions` — izinleri
+- `GetMenuItems` — sidebar öğeleri
+- `OnInstallAsync` / `OnUninstallAsync` — yaşam döngüsü hook'ları
+
+### Kural 4: Tablo isimleri modül prefix'i ile başlar
+
+```
+Blog_Posts, Blog_Categories, Blog_Tags
+ECommerce_Orders, ECommerce_Products
+CRM_Leads, CRM_Contacts
+```
+
+Çekirdek tablolar prefix kullanmaz: `Users`, `Roles`, `Tenants`.
+
+### Kural 5: Modüller arası iletişim
+
+- **Olay yayını** (asenkron): MediatR `IIntegrationEvent` üzerinden
+- **Bilgi sorgusu** (senkron): Hedef modülün `Cms.Modules.X.Contracts` projesindeki interface'i üzerinden
+- **YASAK:** Modül A → Modül B'nin asıl projesine doğrudan referans
+
+### Kural 6: Multi-tenant izolasyon
+
+- **Master DB** (`cms_master`): Tenants, TenantModules, kullanıcı kök bilgileri
+- **Tenant DB** (her müşteri için ayrı): İş verileri
+- Tenant resolver subdomain bazlıdır: `panel.acme.local` → `acme` tenant'ı
+
+### Kural 7: Sıfır warning, sıfır hardcoded string
+
+- `<TreatWarningsAsErrors>true</TreatWarningsAsErrors>` (Directory.Build.props)
+- Hardcoded string yerine `const`, `enum` veya `Resources` kullan
+- İstisna: log mesajları, exception mesajları
+
+## Code Style
+
+- File-scoped namespace (`namespace X;` — kıvırcık parantez yok)
+- Async tüm I/O metodları, `Async` suffix
+- DTO'lar `record`, entity'ler `class`
+- Primary constructors uygun yerlerde (C# 12+)
+- LINQ `for` loop yerine, okunabilirse
+- Nullable annotation'ları açık (`string?`, `int?`)
+- `var` kullan, type aşikarsa
+- xUnit + FluentAssertions: `result.Should().Be(expected)` formatı
+
+## Komutlar
+
+| Amaç | Komut |
+|---|---|
+| Build | `dotnet build` |
+| Test | `dotnet test` |
+| Run | `dotnet run --project src/Cms.Web` |
+| Format | `dotnet format` |
+| Migration ekle (master) | `dotnet ef migrations add <Name> --project src/Cms.Core --startup-project src/Cms.Web --context MasterDbContext` |
+| Migration uygula | `dotnet ef database update --project src/Cms.Core --startup-project src/Cms.Web --context MasterDbContext` |
+
+## Don'ts
+
+- **Microsoft.AspNetCore.Identity** kullanma — kendi Auth tablomuz var
+- **AutoMapper** önerme — Mapster kullanıyoruz
+- **dynamic** keyword'ü kullanma
+- **PostgreSQL veya başka DB'ye geçiş** önerme — MySQL fix
+- **Genel `Exception` catch** etme, rethrow veya log etmeden
+- **EF Core 10'a özgü** sözdizimi kullanma (Pomelo henüz desteklemiyor)
+- **Microsoft.AspNetCore.SignalR** ekleme (henüz scope dışı)
+- **GraphQL kütüphanesi** ekleme (REST + minimal API yeterli)
+
+## Definition of Done (her adım için)
+
+Bir adım tamamlandı sayılır:
+
+- [ ] Kod derleniyor, sıfır warning
+- [ ] Test eklendi (veya neden eklenmediği açıkça gerekçelendirildi)
+- [ ] `dotnet format --verify-no-changes` geçiyor
+- [ ] Manuel doğrulama yapıldı (gerekiyorsa screenshot)
+- [ ] PROGRESS.md güncellendi
+- [ ] DEFERRED.md güncellendi (yeni erteleme/kapatılan)
+- [ ] Commit atıldı, format: `feat: faz-X.Y kisa aciklama` (diakritiksiz)
+- [ ] Commit hash'i adım raporunda belirtildi
+
+## Aktif Modül Listesi
+
+> Bu liste fazlar ilerledikçe güncellenir.
+
+- (henüz modül eklenmedi)
+
+## Referans Dokümanlar
+
+- `WORKING_STYLE.md` — İletişim ve süreç kuralları
+- `PROGRESS.md` — Mevcut durum
+- `DEFERRED.md` — Ertelenen işler
+- `docs/ARCHITECTURE.md` — (Faz 1'de oluşturulacak) Detaylı mimari
+- `docs/MODULE_TEMPLATE.md` — (Faz 5'te oluşturulacak) Yeni modül kılavuzu

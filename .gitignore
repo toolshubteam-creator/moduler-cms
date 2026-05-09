@@ -1,0 +1,66 @@
+# .NET
+bin/
+obj/
+out/
+*.user
+*.suo
+.vs/
+.vscode/*
+!.vscode/cms.code-snippets
+!.vscode/launch.json
+!.vscode/tasks.json
+!.vscode/extensions.json
+
+# Build output
+*.dll
+*.exe
+*.pdb
+*.cache
+*.log
+
+# NuGet
+*.nupkg
+*.snupkg
+.nuget/
+packages/
+
+# Rider / ReSharper
+.idea/
+_ReSharper*/
+*.DotSettings.user
+
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Test
+TestResults/
+coverage/
+*.coverage
+*.coveragexml
+
+# EF Core
+*.mdf
+*.ldf
+
+# Secrets (asla commit etme)
+appsettings.*.local.json
+secrets.json
+.env
+.env.local
+
+# Hangfire
+Hangfire-*.txt
+
+# Modules deploy klasörü (build output)
+deploy/local/Modules/
+
+# Geçici dosyalar
+*.tmp
+*.bak
+*~
+
+# Claude Code
+.claude/sessions/
+.claude/cache/
