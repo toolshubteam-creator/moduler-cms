@@ -36,7 +36,9 @@ public sealed class MasterDbContext(DbContextOptions<MasterDbContext> options) :
         modelBuilder.Entity<UserRole>(b =>
         {
             b.ToTable("Sys_UserRoles");
-            b.HasKey(x => new { x.UserId, x.RoleId, x.TenantId });
+            b.HasKey(x => x.Id);
+            b.Property(x => x.Id).ValueGeneratedOnAdd();
+            b.HasIndex(x => new { x.UserId, x.RoleId, x.TenantId }).IsUnique();
             b.HasOne(x => x.User).WithMany(u => u.UserRoles).HasForeignKey(x => x.UserId).OnDelete(DeleteBehavior.Cascade);
             b.HasOne(x => x.Role).WithMany(r => r.UserRoles).HasForeignKey(x => x.RoleId).OnDelete(DeleteBehavior.Cascade);
             b.HasIndex(x => x.TenantId);

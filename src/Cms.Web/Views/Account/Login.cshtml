@@ -1,0 +1,25 @@
+@model LoginViewModel
+@{
+    ViewData["Title"] = "Giris";
+    var returnUrl = ViewData["ReturnUrl"] as string;
+}
+
+<h1>Giris</h1>
+
+<form asp-action="Login" asp-route-returnUrl="@returnUrl" method="post">
+    <div asp-validation-summary="All"></div>
+
+    <div>
+        <label asp-for="Email"></label>
+        <input asp-for="Email" autocomplete="username" />
+        <span asp-validation-for="Email"></span>
+    </div>
+
+    <div>
+        <label asp-for="Password"></label>
+        <input asp-for="Password" autocomplete="current-password" />
+        <span asp-validation-for="Password"></span>
+    </div>
+
+    <button type="submit">Giris Yap</button>
+</form>

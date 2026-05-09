@@ -16,6 +16,7 @@ public static class MasterDataExtensions
             options.UseMySql(connStr, ServerVersion.AutoDetect(connStr)));
 
         services.AddSingleton<IPasswordHasher, Pbkdf2PasswordHasher>();
+        services.AddScoped<IUserService, UserService>();
 
         return services;
     }

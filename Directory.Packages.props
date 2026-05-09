@@ -33,6 +33,7 @@
     <PackageVersion Include="FluentAssertions" Version="6.12.2" />
     <PackageVersion Include="Testcontainers" Version="4.0.0" />
     <PackageVersion Include="Testcontainers.MySql" Version="4.0.0" />
+    <PackageVersion Include="Microsoft.AspNetCore.Mvc.Testing" Version="9.0.0" />
   </ItemGroup>
   <ItemGroup Label="Versioning">
     <PackageVersion Include="NuGet.Versioning" Version="6.12.0" />

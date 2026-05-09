@@ -1,0 +1,10 @@
+<Project>
+  <Target Name="GuardAgainstModuleProjectReferences" BeforeTargets="ResolveProjectReferences">
+    <ItemGroup>
+      <_ForbiddenModuleReferences Include="@(ProjectReference)"
+                                  Condition="$([System.String]::Copy('%(Filename)').StartsWith('Cms.Modules.'))" />
+    </ItemGroup>
+    <Error Condition="@(_ForbiddenModuleReferences->Count()) &gt; 0"
+           Text="Cms.Web'e Cms.Modules.* ProjectReference eklenemez (CLAUDE.md Kural 1, Kural 2). Yasaklanan: @(_ForbiddenModuleReferences->'%(Filename)')." />
+  </Target>
+</Project>
