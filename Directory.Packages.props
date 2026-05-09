@@ -12,6 +12,9 @@
     <PackageVersion Include="Microsoft.EntityFrameworkCore.Relational" Version="9.0.0" />
     <PackageVersion Include="Pomelo.EntityFrameworkCore.MySql" Version="9.0.0" />
   </ItemGroup>
+  <ItemGroup Label="Crypto">
+    <PackageVersion Include="Microsoft.AspNetCore.Cryptography.KeyDerivation" Version="9.0.0" />
+  </ItemGroup>
   <ItemGroup Label="Validation + Mapping">
     <PackageVersion Include="FluentValidation" Version="11.11.0" />
     <PackageVersion Include="FluentValidation.DependencyInjectionExtensions" Version="11.11.0" />

@@ -29,3 +29,8 @@ dotnet_separate_import_directive_groups = false
 [*.cs]
 # CA1707 (underscore in member name): test isimleri icin gerekli
 dotnet_diagnostic.CA1707.severity = none
+
+# EF Core auto-generated migration dosyalari: block-style namespace ureyiyor, IDE0161 kapali
+[**/Data/Migrations/*.cs]
+dotnet_diagnostic.IDE0161.severity = none
+csharp_style_namespace_declarations = block_scoped:silent

@@ -1,4 +1,5 @@
 using System.Globalization;
+using Cms.Core.Data;
 using Cms.Core.Modules;
 using Serilog;
 
@@ -13,6 +14,8 @@ builder.Host.UseSerilog((context, services, configuration) =>
 });
 
 builder.Services.AddControllersWithViews();
+
+builder.Services.AddCmsMaster(builder.Configuration);
 
 var modules = builder.Services.AddCmsModules(builder.Configuration);
 
