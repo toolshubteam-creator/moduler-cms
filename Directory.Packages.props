@@ -31,4 +31,7 @@
     <PackageVersion Include="Testcontainers" Version="4.0.0" />
     <PackageVersion Include="Testcontainers.MySql" Version="4.0.0" />
   </ItemGroup>
+  <ItemGroup Label="Versioning">
+    <PackageVersion Include="NuGet.Versioning" Version="6.12.0" />
+  </ItemGroup>
 </Project>
