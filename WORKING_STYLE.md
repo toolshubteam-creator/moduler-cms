@@ -132,6 +132,7 @@ Her adım sonunda kod değişiklikleri ilgili adımın commit'i olarak push edil
 - Adım raporunun "RAPOR" bölümünde commit hash'i belirtilir
 - Doc-only değişiklikler `docs:` prefix'i ile ayrı commit
 - Birden çok adımın değişikliği aynı dosyada birikirse: dosyayı son adımın commit'ine bütün halinde koymak kabul edilir (granülerlik kaybı, hunk staging riski yerine pragmatik tercih)
+- Bir adımın commit sırası: **kod önce, doc sonra**. Çünkü PROGRESS.md "Yapılanlar" bölümü kod commit hash'ini referans alır; ters sırada placeholder yazıp sonra amend etmek git history'yi kirletir.
 
 ═══════════════════════════════════════════════════════════════════
 YENİ KONUŞMA BAŞLANGICI — CHECKLIST

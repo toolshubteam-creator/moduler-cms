@@ -121,6 +121,11 @@ CRM_Leads, CRM_Contacts
 | Migration ekle (master) | `dotnet ef migrations add <Name> --project src/Cms.Core --startup-project src/Cms.Web --context MasterDbContext` |
 | Migration uygula | `dotnet ef database update --project src/Cms.Core --startup-project src/Cms.Web --context MasterDbContext` |
 
+## Solution Dosyasi
+
+- `Cms.slnx` (XML, .NET 10 default formati)
+- VS Code C# Dev Kit'te otomatik bulunur; bulamazsa `.vscode/settings.json`'a `"dotnet.defaultSolution": "Cms.slnx"` eklenebilir
+
 ## Don'ts
 
 - **Microsoft.AspNetCore.Identity** kullanma — kendi Auth tablomuz var
@@ -132,6 +137,7 @@ CRM_Leads, CRM_Contacts
 - **Microsoft.AspNetCore.SignalR** ekleme (henüz scope dışı)
 - **GraphQL kütüphanesi** ekleme (REST + minimal API yeterli)
 - **MediatR** kullanma — Mediator (martinothamar) kullaniyoruz. MediatR v13+ ticari lisansli, v12 arsivlendi.
+- **Cms.Abstractions framework-bagimsiz degildir** — ASP.NET Core ve EF Core abstractions'a kasitli baglidir. Baska web framework'une tasima plani yoktur.
 
 ## Definition of Done (her adım için)
 

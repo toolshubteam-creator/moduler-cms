@@ -4,7 +4,7 @@
 > Geçmiş kayıt değil — gelecek-bakışlı.
 > Her adım başında okunur, sonunda güncellenir.
 
-**Son güncelleme:** Faz-1.1 — D-001 ve D-002 eklendi.
+**Son güncelleme:** Faz-1.2 — D-003 ve D-004 eklendi.
 
 ---
 
@@ -35,23 +35,33 @@ ID formatı: `D-001`, `D-002`... (sıralı, silinince ID tekrar kullanılmaz)
 **Tetik:** Faz-3 (Generic CRUD'da audit job'i icin) ya da Faz-6 (Event Bus + Notification)
 **Eklenme:** Faz-1.1
 
+### D-003 — Yeni proje sablonlari + CPM uyumsuzlugu
+**Bağlam:** Faz-1.1'de "dotnet new xunit" Version'li PackageReference'lar uretti, CPM ile NU1008 catismasi cikti, csproj el ile yeniden yazildi. Yeni proje eklendiginde benzer sapma beklenmeli.
+**Tetik:** Faz-2 veya sonrasi (yeni proje eklenecek faz)
+**Eklenme:** Faz-1.2
+
+### D-004 — JSON-based modul manifest pre-load discovery
+**Bağlam:** ModuleManifest code-first record olarak duruyor, modul DLL'i yuklenmeden manifest okunamiyor. 10+ modul kullanan projeler icin ileride DLL yuklemeden once metadata okumayi (module.json) dusunebiliriz. Bugun erken optimizasyon.
+**Tetik:** v2 (Faz-8 sonrasi backlog)
+**Eklenme:** Faz-1.2
+
 ---
 
 ## Faz Bazlı Tetik Tablosu
 
 | Tetik Faz | Bekleyen Madde Sayısı |
 |---|---|
-| Faz-1 | 1 |
-| Faz-2 | 0 |
+| Faz-1 | 1 (D-001) |
+| Faz-2 | 1 (D-003) |
 | Faz-3 | 1 (D-002, alternatif Faz-6) |
 | Faz-4 | 0 |
 | Faz-5 | 0 |
 | Faz-6 | 0 |
 | Faz-7 | 0 |
 | Faz-8 | 0 |
-| v2 | 0 |
+| v2 | 1 (D-004) |
 
-**Toplam aktif:** 2
+**Toplam aktif:** 4
 
 ---
 
