@@ -93,6 +93,15 @@ CRM_Leads, CRM_Contacts
 - Hardcoded string yerine `const`, `enum` veya `Resources` kullan
 - İstisna: log mesajları, exception mesajları
 
+### Kural 8: Modul yukleme konvansiyonlari
+
+- Modul DLL'leri `bin/.../Modules/` (default) veya `Modules:Path` config ile belirlenen dizinden yuklenir
+- Her modul DLL'i bir `IModule` implementasyonu icermelidir (yoksa atlanir, hata degil)
+- Modul ASP.NET Core, EF Core, Cms.Abstractions tiplerini host'tan paylasir; kendi kopyasini DLL'inde tasimaz
+- AssemblyLoadContext collectible — runtime'da modul kaldirilabilir
+- Modul yukleme sirasi: IsCorePlugin=true olanlar once, sonra topological sort (Manifest.Dependencies'e gore)
+- Cycle veya cozumlenemeyen dependency tum yuklemeyi durdurur
+
 ## Code Style
 
 - File-scoped namespace (`namespace X;` — kıvırcık parantez yok)
@@ -109,6 +118,7 @@ CRM_Leads, CRM_Contacts
 - TreatWarningsAsErrors yalnizca Release konfigurasyonunda etkin
 - CI/PR ve commit oncesi: `dotnet build -c Release` ile dogrula
 - Yerel gelistirme Debug'da serbest (analyzer noise'i sadece Release'de hata)
+- AnalysisMode: Default (correctness-oncelikli; performance-oncelikli kurallar suggestion seviyesinde, tek tek opt-in)
 
 ## Komutlar
 
@@ -117,6 +127,7 @@ CRM_Leads, CRM_Contacts
 | Build | `dotnet build` |
 | Test | `dotnet test` |
 | Run | `dotnet run --project src/Cms.Web` |
+| Run (modulsuz) | `dotnet run --project src/Cms.Web` |
 | Format | `dotnet format` |
 | Migration ekle (master) | `dotnet ef migrations add <Name> --project src/Cms.Core --startup-project src/Cms.Web --context MasterDbContext` |
 | Migration uygula | `dotnet ef database update --project src/Cms.Core --startup-project src/Cms.Web --context MasterDbContext` |

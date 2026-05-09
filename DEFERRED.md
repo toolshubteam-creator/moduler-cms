@@ -4,7 +4,7 @@
 > Geçmiş kayıt değil — gelecek-bakışlı.
 > Her adım başında okunur, sonunda güncellenir.
 
-**Son güncelleme:** Faz-1.2 — D-003 ve D-004 eklendi.
+**Son güncelleme:** Faz-1.3 — D-003 kapatildi (manuel csproj yazimi), D-005 ve D-006 eklendi.
 
 ---
 
@@ -35,15 +35,20 @@ ID formatı: `D-001`, `D-002`... (sıralı, silinince ID tekrar kullanılmaz)
 **Tetik:** Faz-3 (Generic CRUD'da audit job'i icin) ya da Faz-6 (Event Bus + Notification)
 **Eklenme:** Faz-1.1
 
-### D-003 — Yeni proje sablonlari + CPM uyumsuzlugu
-**Bağlam:** Faz-1.1'de "dotnet new xunit" Version'li PackageReference'lar uretti, CPM ile NU1008 catismasi cikti, csproj el ile yeniden yazildi. Yeni proje eklendiginde benzer sapma beklenmeli.
-**Tetik:** Faz-2 veya sonrasi (yeni proje eklenecek faz)
-**Eklenme:** Faz-1.2
-
 ### D-004 — JSON-based modul manifest pre-load discovery
 **Bağlam:** ModuleManifest code-first record olarak duruyor, modul DLL'i yuklenmeden manifest okunamiyor. 10+ modul kullanan projeler icin ileride DLL yuklemeden once metadata okumayi (module.json) dusunebiliriz. Bugun erken optimizasyon.
 **Tetik:** v2 (Faz-8 sonrasi backlog)
 **Eklenme:** Faz-1.2
+
+### D-005 — AddCmsModules icindeki BuildServiceProvider() anti-pattern
+**Bağlam:** Module discovery DI tamamlanmadan once gerekli oldugu icin ServiceCollection.BuildServiceProvider() cagriliyor (multiple service providers). Daha temiz: HostBuilder extension veya StartupTask pattern.
+**Tetik:** Faz-2 (Multi-tenancy + RBAC kurarken composition root yenilenecek)
+**Eklenme:** Faz-1.3
+
+### D-006 — Module hot-reload + AssemblyLoadContext.Unload
+**Bağlam:** Collectible context kuruldu ama unload mekanizmasi (admin panelinden modul kaldirma/yenileme) henuz yok. ModuleLoader.UnloadAsync veya ModuleManager service'i.
+**Tetik:** Faz-8 (production hardening)
+**Eklenme:** Faz-1.3
 
 ---
 
@@ -52,16 +57,16 @@ ID formatı: `D-001`, `D-002`... (sıralı, silinince ID tekrar kullanılmaz)
 | Tetik Faz | Bekleyen Madde Sayısı |
 |---|---|
 | Faz-1 | 1 (D-001) |
-| Faz-2 | 1 (D-003) |
+| Faz-2 | 1 (D-005) |
 | Faz-3 | 1 (D-002, alternatif Faz-6) |
 | Faz-4 | 0 |
 | Faz-5 | 0 |
 | Faz-6 | 0 |
 | Faz-7 | 0 |
-| Faz-8 | 0 |
+| Faz-8 | 1 (D-006) |
 | v2 | 1 (D-004) |
 
-**Toplam aktif:** 4
+**Toplam aktif:** 5
 
 ---
 
