@@ -3,7 +3,7 @@
 > Bu dosya **canlı** durum dosyasıdır. Her adım sonunda güncellenir.
 > Sade tutuyoruz; detaylı task listesi her fazın açılışında konuşulup üretilir.
 
-**Son güncelleme:** Faz-1.3 (ModuleLoader) — DONE
+**Son güncelleme:** Faz-1.4 (Auth tablolari + hashing) — DONE
 
 ---
 
@@ -36,13 +36,14 @@
 | 1.1 | Solution iskeleti ve NuGet paketleri | 🟢 DONE |
 | 1.2 | IModule kontrati (Cms.Abstractions) ve Manifest tipleri | 🟢 DONE |
 | 1.3 | ModuleLoader (DLL discovery + reflection) | 🟢 DONE |
-| 1.4 | Auth tablolari ve hashing | ⚪ TODO |
+| 1.4 | Auth tablolari ve hashing | 🟢 DONE |
 | 1.5 | Auth login/logout MVC controller | ⚪ TODO |
 
 ---
 
 ## Yapılanlar (kronolojik, en yeni üstte)
 
+- **Faz-1.4** (commit: `b7f8c2d`): MasterDbContext + 6 entity (User/Role/UserRole/Permission/RolePermission/Tenant, Sys_ prefix) + Pbkdf2PasswordHasher (PBKDF2-SHA256, 100k iter, "iter.salt_b64.hash_b64" format) + AddCmsMaster DI extension + InitialAuth migration + 6 hasher unit testi + 3 MasterDbContext integration testi (Testcontainers MySQL 8.0). appsettings.Development.json git takibinden cikarildi, .gitignore'a eklendi. .editorconfig'e EF auto-generated migration dosyalari icin IDE0161 override'i eklendi. Toplam 25 test yesil.
 - **Faz-1.3** (commit: `3bd6444`): ModuleLoader + ModuleLoadContext (collectible AssemblyLoadContext) + ModuleDependencyResolver (topological sort, cycle/version/missing-dep validation) + ModuleHostExtensions (AddCmsModules/MapCmsModules/InstallCmsModulesAsync) + Cms.Tests.FakeModule integration helper + 9 yeni test (7 resolver unit + 2 loader integration). AnalysisMode Recommended->Default geri alindi (CA1848/CA1873 performans kurallari suggestion seviyesinde).
 - **Faz-1.2** (commit: `c976f3b`): IModule + opsiyonel arayuzler (IHasEntities/Endpoints/Permissions/MenuItems) + ModuleBase + ModuleManifest/Dependency + Permission/Menu deger object'leri + 7 value object testi. Cms.Abstractions FrameworkReference Microsoft.AspNetCore.App ile baglandi.
 - **Faz-1.1** (commit: `6896aef`): Solution iskeleti + 4 proje (Cms.Abstractions, Cms.Core, Cms.Web, Cms.Tests) + Central Package Management + Mediator/Pomelo/Serilog paketleri. Release build sifir warning, sifir error.
@@ -52,7 +53,7 @@
 
 ## Sıradaki
 
-- **Faz-1.4:** Auth tablolari ve hashing — Users/Roles/Permissions entity'leri, password hashing (Argon2/PBKDF2 secimi), MasterDbContext.
+- **Faz-1.5:** Auth login/logout MVC controller — IUserService, login formu, cookie auth, session/logout. Faz-1.4'de hazirlanan Pbkdf2PasswordHasher ve User entity'si uzerine kurulacak.
 
 ---
 

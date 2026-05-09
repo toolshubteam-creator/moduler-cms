@@ -102,6 +102,14 @@ CRM_Leads, CRM_Contacts
 - Modul yukleme sirasi: IsCorePlugin=true olanlar once, sonra topological sort (Manifest.Dependencies'e gore)
 - Cycle veya cozumlenemeyen dependency tum yuklemeyi durdurur
 
+### Kural 9: Auth ve veri modeli
+
+- Auth tablolari Master DB'de (`Sys_` prefix: `Sys_Users`, `Sys_Roles`, `Sys_UserRoles`, `Sys_Permissions`, `Sys_RolePermissions`, `Sys_Tenants`)
+- Multi-tenancy: `Sys_UserRoles.TenantId` nullable; null = global rol, dolu = tenant-spesifik rol
+- `Tenant.Id` Guid (subdomain/path'te gorunecek), digerleri int auto-increment
+- Sifre: PBKDF2-SHA256, 100k iter, 16 byte salt, 32 byte hash, format `"iter.salt_b64.hash_b64"`
+- ASP.NET Core Identity KULLANILMIYOR; kendi `IUserService` ve `IPasswordHasher`
+
 ## Code Style
 
 - File-scoped namespace (`namespace X;` — kıvırcık parantez yok)
@@ -129,8 +137,8 @@ CRM_Leads, CRM_Contacts
 | Run | `dotnet run --project src/Cms.Web` |
 | Run (modulsuz) | `dotnet run --project src/Cms.Web` |
 | Format | `dotnet format` |
-| Migration ekle (master) | `dotnet ef migrations add <Name> --project src/Cms.Core --startup-project src/Cms.Web --context MasterDbContext` |
-| Migration uygula | `dotnet ef database update --project src/Cms.Core --startup-project src/Cms.Web --context MasterDbContext` |
+| Migration ekle (master) | `dotnet ef migrations add <Name> --project src/Cms.Core --startup-project src/Cms.Web --output-dir Data/Migrations` |
+| Migration uygula | `dotnet ef database update --project src/Cms.Core --startup-project src/Cms.Web` |
 
 ## Solution Dosyasi
 
@@ -149,6 +157,7 @@ CRM_Leads, CRM_Contacts
 - **GraphQL kütüphanesi** ekleme (REST + minimal API yeterli)
 - **MediatR** kullanma — Mediator (martinothamar) kullaniyoruz. MediatR v13+ ticari lisansli, v12 arsivlendi.
 - **Cms.Abstractions framework-bagimsiz degildir** — ASP.NET Core ve EF Core abstractions'a kasitli baglidir. Baska web framework'une tasima plani yoktur.
+- **`appsettings.Development.json`'i COMMIT ETME** — DB sifresi icerir, `.gitignore`'da. Repo'da sadece `appsettings.json` (bos `ConnectionStrings:Master`) bulunur.
 
 ## Definition of Done (her adım için)
 
