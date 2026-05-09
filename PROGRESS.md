@@ -3,7 +3,7 @@
 > Bu dosya **canlı** durum dosyasıdır. Her adım sonunda güncellenir.
 > Sade tutuyoruz; detaylı task listesi her fazın açılışında konuşulup üretilir.
 
-**Son güncelleme:** Faz-0 (Repo kurulum) — devam ediyor
+**Son güncelleme:** Faz-1.1 (Solution iskeleti) — DONE
 
 ---
 
@@ -11,8 +11,8 @@
 
 | Faz | Tema | Süre Hedefi | Durum |
 |---|---|---|---|
-| **Faz-0** | Repo + doküman seti kurulumu | 1 gün | 🟡 IN-PROGRESS |
-| **Faz-1** | Çekirdek temel (IModule, ModuleLoader, Auth) | 2 hafta | ⚪ TODO |
+| **Faz-0** | Repo + doküman seti kurulumu | 1 gün | 🟢 DONE |
+| **Faz-1** | Çekirdek temel (IModule, ModuleLoader, Auth) | 2 hafta | 🟡 IN-PROGRESS |
 | **Faz-2** | Multi-tenancy + RBAC | 2 hafta | ⚪ TODO |
 | **Faz-3** | Generic CRUD + Audit | 2 hafta | ⚪ TODO |
 | **Faz-4** | Media + SEO + Settings (3 çekirdek modül) | 2 hafta | ⚪ TODO |
@@ -25,31 +25,32 @@
 
 ---
 
-## Aktif Faz: Faz-0
+## Aktif Faz: Faz-1 — Çekirdek temel
 
-**Hedef:** Repo'yu GitHub'da aç, lokal'e bağla, dört zorunlu dokümanı yerleştir, ilk commit'i at. Henüz `dotnet` komutu yok.
+**Hedef:** IModule kontratini, ModuleLoader'i, Auth tablolari + login akisini hazirlamak. Solution iskeleti Faz-1.1'de kuruldu.
 
-### Faz-0 Adımları
+### Faz-1 Adımları
 
 | Adım | Başlık | Durum |
 |---|---|---|
-| 0.1 | GitHub'da public repo aç | ⚪ TODO |
-| 0.2 | Lokal klasörü hazırla, git init | ⚪ TODO |
-| 0.3 | 4 zorunlu doküman + README + .gitignore + LICENSE yerleştir | ⚪ TODO |
-| 0.4 | İlk commit, GitHub'a push | ⚪ TODO |
-| 0.5 | Faz-0 retrospektif, Faz-1 plan tartışmasına geçiş | ⚪ TODO |
+| 1.1 | Solution iskeleti ve NuGet paketleri | 🟢 DONE |
+| 1.2 | IModule kontrati (Cms.Abstractions) ve Manifest tipleri | ⚪ TODO |
+| 1.3 | ModuleLoader (DLL discovery + reflection) | ⚪ TODO |
+| 1.4 | Auth tablolari ve hashing | ⚪ TODO |
+| 1.5 | Auth login/logout MVC controller | ⚪ TODO |
 
 ---
 
 ## Yapılanlar (kronolojik, en yeni üstte)
 
-> Henüz tamamlanmış adım yok. İlk commit Faz-0.4'te atılacak.
+- **Faz-1.1** (commit: `6896aef`): Solution iskeleti + 4 proje (Cms.Abstractions, Cms.Core, Cms.Web, Cms.Tests) + Central Package Management + Mediator/Pomelo/Serilog paketleri. Release build sifir warning, sifir error.
+- **Faz-0.1-0.5** (commit: `e87ee2d`): Repo kurulum + dort dokuman yerlestirme + ilk push.
 
 ---
 
 ## Sıradaki
 
-- **Faz-0.5 sonrası:** Yeni Claude Code oturumu açılır, `init-prompt.md` ile başlatılır, **Faz-1.1 (solution iskeleti)** plan tartışması başlar.
+- **Faz-1.2:** IModule kontrati (Cms.Abstractions), Manifest tipleri, RegisterServices/RegisterEntities/MapEndpoints imzalari.
 
 ---
 

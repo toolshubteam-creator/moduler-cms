@@ -20,10 +20,10 @@ Müşteri projelerinde sıfırdan yazmak yerine modüler olarak hızlı kurulan,
 | ORM | EF Core | 9.0.0 | Pomelo .NET 10 / EF Core 10'u henüz tam desteklemiyor |
 | MySQL Provider | Pomelo.EntityFrameworkCore.MySql | 9.0.0 | EF Core 10'a geçiş Pomelo stabilize olunca |
 | DB | MySQL | 8.x | utf8mb4_0900_ai_ci collation |
-| Mediator | MediatR | 12.4.x | Event bus + handler dispatch |
+| Mediator | Mediator (martinothamar) | 3.0.2 | Source-generator, MediatR'den lisans nedeniyle gecildi |
 | Validation | FluentValidation | 11.10.x | Attribute kirliliği yok |
 | Mapping | Mapster | 7.4.x | AutoMapper YERİNE |
-| Logging | Serilog.AspNetCore | 8.0.x | Console + File sink |
+| Logging | Serilog.AspNetCore | 10.0.x | Console + File sink, .NET 10 hizali |
 | Background | Hangfire + Hangfire.MySqlStorage | 1.8.x / 2.0.x | Job dashboard /admin/jobs |
 | Test | xUnit + FluentAssertions + Testcontainers | latest | Gerçek MySQL ile entegrasyon testi |
 | IDE | VS Code + C# Dev Kit | latest | Visual Studio 2022/2026 değil |
@@ -104,6 +104,12 @@ CRM_Leads, CRM_Contacts
 - `var` kullan, type aşikarsa
 - xUnit + FluentAssertions: `result.Should().Be(expected)` formatı
 
+## Build Konvansiyonu
+
+- TreatWarningsAsErrors yalnizca Release konfigurasyonunda etkin
+- CI/PR ve commit oncesi: `dotnet build -c Release` ile dogrula
+- Yerel gelistirme Debug'da serbest (analyzer noise'i sadece Release'de hata)
+
 ## Komutlar
 
 | Amaç | Komut |
@@ -125,6 +131,7 @@ CRM_Leads, CRM_Contacts
 - **EF Core 10'a özgü** sözdizimi kullanma (Pomelo henüz desteklemiyor)
 - **Microsoft.AspNetCore.SignalR** ekleme (henüz scope dışı)
 - **GraphQL kütüphanesi** ekleme (REST + minimal API yeterli)
+- **MediatR** kullanma — Mediator (martinothamar) kullaniyoruz. MediatR v13+ ticari lisansli, v12 arsivlendi.
 
 ## Definition of Done (her adım için)
 
