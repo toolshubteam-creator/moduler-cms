@@ -3,7 +3,7 @@
 > Bu dosya **canlı** durum dosyasıdır. Her adım sonunda güncellenir.
 > Sade tutuyoruz; detaylı task listesi her fazın açılışında konuşulup üretilir.
 
-**Son güncelleme:** Faz-2.3 (RBAC permission system) — DONE
+**Son güncelleme:** Faz-2.4 (Tenant CRUD + admin UI) — DONE · **Faz-2 KAPANDI**
 
 ---
 
@@ -13,8 +13,8 @@
 |---|---|---|---|
 | **Faz-0** | Repo + doküman seti kurulumu | 1 gün | 🟢 DONE |
 | **Faz-1** | Çekirdek temel (IModule, ModuleLoader, Auth) | 2 hafta | 🟢 DONE |
-| **Faz-2** | Multi-tenancy + RBAC | 2 hafta | 🟡 IN-PROGRESS |
-| **Faz-3** | Generic CRUD + Audit | 2 hafta | ⚪ TODO |
+| **Faz-2** | Multi-tenancy + RBAC | 2 hafta | 🟢 DONE |
+| **Faz-3** | Generic CRUD + Audit | 2 hafta | 🟡 NEXT |
 | **Faz-4** | Media + SEO + Settings (3 çekirdek modül) | 2 hafta | ⚪ TODO |
 | **Faz-5** | Blog modülü (full, referans modül) | 2 hafta | ⚪ TODO |
 | **Faz-6** | Event Bus + Notification | 2 hafta | ⚪ TODO |
@@ -25,9 +25,9 @@
 
 ---
 
-## Aktif Faz: Faz-2 — Multi-tenancy + RBAC
+## Aktif Faz: Faz-3 — Generic CRUD + Audit
 
-**Hedef:** Tenant resolver (subdomain bazli), RBAC (rol ve permission kontrolu), TenantDbContext factory, ilk tenant yaratma akisi. Faz-1.5'te hazirlanan IUserService ve cookie auth uzerine kurulacak.
+**Hedef:** Modul yazimi icin generic CRUD scaffold + audit log (kim, ne zaman, neyi degistirdi). Faz-2'de hazirlanan tenant + RBAC altyapisi uzerine kurulacak. Faz-3 detayi 3.1 baslangicinda konusulacak.
 
 ### Faz-1 Adımları (KAPANDI)
 
@@ -39,19 +39,20 @@
 | 1.4 | Auth tablolari ve hashing | 🟢 DONE |
 | 1.5 | Auth login/logout MVC controller | 🟢 DONE |
 
-### Faz-2 Adımları
+### Faz-2 Adımları (KAPANDI)
 
 | Adım | Başlık | Durum |
 |---|---|---|
 | 2.1 | Tenant resolver + ITenantContext | 🟢 DONE |
 | 2.2 | TenantDbContext factory | 🟢 DONE |
 | 2.3 | RBAC: Permission system + [HasPermission] | 🟢 DONE |
-| 2.4 | Tenant CRUD + ilk tenant olusturma | ⚪ TODO |
+| 2.4 | Tenant CRUD + admin UI | 🟢 DONE |
 
 ---
 
 ## Yapılanlar (kronolojik, en yeni üstte)
 
+- **Faz-2.4** (commits: `ff84bb8` 2.4a refactor, `1d236a7` 2.4b feat, `4431871` 2.4c feat): Composition root rework — `AddCmsModuleSystem` (DI registrations) + `LoadCmsModulesAsync(IHost)` (post-build) + `ModuleDescriptorRegistry` mutable holder; `BuildServiceProvider()` anti-pattern kaldirildi (D-005 kapatildi). `TenantProvisioningService` (DB lifecycle: CREATE DATABASE + migration + orphan DROP cleanup; SlugValidator regex + reserved listesi + case-insensitive normalize). Areas/Admin/TenantsController (Index/Create/Deactivate) + 3 Razor view (_AdminLayout + Tenants/Index + Create) + CreateTenantViewModel + SystemRole policy/handler/requirement. Toplam 30 yeni test (24 SlugValidator+Provisioning + 6 TenantsController). **FIX-01 (2.4a):** test parallelization deferred D-015 olarak kayit. **FIX-02 (2.4b):** Plan'in ic tutarsizligi (ACME slug invalid bekleniyordu ama validator ToLowerInvariant ile normalize ediyor) — InlineData duzeltildi. **FIX-03 (2.4c manuel UI):** SystemRole policy fail oldu cunku Faz-1.5 dev seed Sys_UserRoles atamasini composite-PK bug'inda kaybetmisti; admin user'a Admin role'u manuel SQL ile atandi. Toplam 85 test yesil. **Faz-2 KAPANDI.**
 - **Faz-2.3** (commit: `959d99a`): IPermissionService + PermissionService (SuperAdmin bypass: IsSystem=true rolu kontrolu atlar; tenant-scoped query: TenantId match veya null = global rol) + HasPermissionAttribute (AuthorizeAttribute miras, "perm:&lt;key&gt;" policy adi) + HasPermissionRequirement + HasPermissionHandler (ITenantContext'ten tenant id, ClaimTypes.NameIdentifier'dan userId) + HasPermissionPolicyProvider (DefaultAuthorizationPolicyProvider fallback ile dinamik on-demand policy uretimi) + PermissionSeeder (idempotent reconcile: yoksa ekler, varsa DisplayName/Description gunceller, ORPHAN PERMISSION'LARI SILMEZ; modul prefix validation) + AddCmsAuthorization DI extension + Cms.Web startup'ta seeder.ReconcileAsync(). 13 yeni test (6 PermissionService + 4 PermissionSeeder + 3 HasPermissionHandler unit). Toplam 56 test yesil.
 - **Faz-2.2** (commits: `15b95c0` 2.2a refactor, `27b38e6` 2.2b feat): MySqlContainerFixture (tek container, izole DB per test, paylasilan ICollectionFixture, **5.4x test hizlanma** — 11dk -> 2dk) + TenantDbContext (modul entity'leri runtime kayit, IHasEntities.RegisterEntities cagrilir, cekirdek DbSet yok) + TenantDbContextFactory (singleton, dinamik conn string) + TenantDbContextProvider (scoped, ITenantContext'ten conn string al, lazy create, tenant resolution sart) + AddCmsTenantData DI extension + Master/Tenant migration klasor ayrimi (Data/Migrations/Master, Data/Migrations/Tenant) + InitialTenant migration (bos schema + EFMigrationsHistory) + IDesignTimeDbContextFactory&lt;TenantDbContext&gt; (dotnet ef komutlari icin) + 4 yeni test (2 factory unit + 2 TenantDbContext integration). **FIX-01 (2.2a):** EF Migrations advisory lock formati `__<dbname>_EFMigrationsLock` 64 char sinirini geciyordu (test_<prefix>_<guid32> 46 char + lock overhead 21 char = 67 > 64). DB adi `t_<prefix>_<guid16>` formatina indirilip 40 char ile sinirlandi. Toplam 43 test yesil.
 - **Faz-2.1** (commit: `e299bc6`): TenancyOptions + ITenantContext (scoped, Set() bir kez) + TenantContext (internal) + ITenantResolver + SubdomainTenantResolver (host'tan slug cikarma + dev query fallback) + TenantResolutionMiddleware (bypass paths /Account, /admin; bilinmeyen tenant 404) + AddCmsTenancy DI + UseTenantResolution() pipeline + appsettings Tenancy:RootDomain/AllowQueryFallback. Cms.Core'a InternalsVisibleTo Cms.Tests eklendi (TenantContext internal). 7 resolver Testcontainers MySQL test + 3 TenantContext unit test. Toplam 39 test yesil. Manuel cURL ile dogrulandi: /Account/Login bypass=200, /=404 (root host'a tenant resolution uygulaniyor, beklenen davranis), /?tenant=acme=302 (tenant cozuldu, Authorize), /?tenant=unknown=404 + "Tenant bulunamadi.".
@@ -66,14 +67,14 @@
 
 ## Sıradaki
 
-- **Faz-2.4:** Tenant CRUD + ilk tenant olusturma akisi. D-005 (composition root rework) burada kapanir. Role assignment UI/API.
+- **Faz-3.1+:** Generic CRUD scaffold (modul-agnostic CRUD pattern) + audit log altyapisi. Faz-3 detayli plani 3.1 baslangicinda konusulacak.
 
 ---
 
 ## Sürüm ve Etiketler
 
 > Her faz tamamlandığında git tag'i atılır: `v0.1.0` (Faz-1 sonu), `v0.2.0` (Faz-2 sonu)…
-> **v0.1.0** atildi (Faz-1 sonu, manuel push'landi). Sonraki: v0.2.0 (Faz-2 sonu).
+> **v0.1.0** atildi (Faz-1 sonu). **v0.2.0** atildi (Faz-2 sonu). Sonraki: v0.3.0 (Faz-3 sonu).
 
 ---
 

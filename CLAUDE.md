@@ -119,6 +119,8 @@ CRM_Leads, CRM_Contacts
 - IsSystem=true rolu (orn. seed'lenen `Admin`) `PermissionService` kontrolunu BYPASS eder — SuperAdmin pattern. Hem `HasPermissionAsync` hem `GetUserPermissionsAsync` (tum permission'lari doner) bu davranisi uygular.
 - `PermissionSeeder` STARTUP-TIME idempotent: yoksa ekler, varsa DisplayName/Description/ModuleId gunceller, **orphan permission'lari SILMEZ** (kullanici atamalari kaybolmasin diye; manuel cleanup admin UI'da, D-013).
 - `[HasPermission]` attribute dinamik policy ile (`HasPermissionPolicyProvider`) on-demand uretilir; `services.AddPolicy(...)` cagrisi gerekmez.
+- Admin UI: `Areas/Admin` (standart MVC area). `[Authorize(Policy = "SystemRole")]` IsSystem=true rolune sahip kullaniciya admin paneli erisimi verir. `SystemRoleHandler` `Sys_UserRoles`'tan kontrol eder.
+- `TenantProvisioningService` DB lifecycle: development'ta `Tenancy:AutoCreateDatabase=true` ile `CREATE DATABASE` + migration otomatik. Production'da `false` (manuel admin operasyonu). Slug regex `^[a-z][a-z0-9-]{2,30}$`, ReservedSlugs konfigure edilebilir.
 
 ## Code Style
 
@@ -154,6 +156,7 @@ CRM_Leads, CRM_Contacts
 | Tenant migration ekle | `dotnet ef migrations add <Name> --project src/Cms.Core --startup-project src/Cms.Web --context TenantDbContext --output-dir Data/Migrations/Tenant` |
 | Tenant DB guncelle | `dotnet ef database update --project src/Cms.Core --startup-project src/Cms.Web --context TenantDbContext --connection "<tenant_conn_string>"` |
 | Default admin (Dev) | `appsettings.Development.json` -> `Auth:DefaultAdmin` (Email/Password). Sadece IsDevelopment() iken seed olur. |
+| Admin paneli (Dev) | `http://localhost:5265/admin/tenants` (default admin: `appsettings.Development.json` Auth:DefaultAdmin) |
 
 ## Solution Dosyasi
 
