@@ -111,6 +111,10 @@ CRM_Leads, CRM_Contacts
 - ASP.NET Core Identity KULLANILMIYOR; kendi `IUserService` ve `IPasswordHasher`
 - Cookie auth: `AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme).AddCookie(...)`; Login/Logout/AccessDenied path'leri `/Account/Login` ve `/Account/Logout`. Production cookie politikalari (SameSite, Secure, ExpireTimeSpan) Faz-7'de tunelenecek.
 - Dev admin seed: `Auth:DefaultAdmin` config'i ile yalniz `IsDevelopment()` iken calisir. Production'da bu seed kapanir; ilk admin /setup wizard ile yaratilacak (Faz-7).
+- `TenantDbContext` cekirdek tablo icermez — modul entity'leri `OnModelCreating`'de `IHasEntities.RegisterEntities` cagrilarak runtime'da kayit edilir. `DbSet` deklare edilmez.
+- Tenant DB conn string'i `ITenantContext.Current.ConnectionString`'ten alinir (scoped). `TenantDbContextProvider` request basina lazy yaratim yapar; tenant resolution tamamlanmadan istek atilirsa `InvalidOperationException`.
+- Master ve Tenant migrations ayri klasorlerde: `src/Cms.Core/Data/Migrations/Master/` ve `src/Cms.Core/Data/Migrations/Tenant/`. EF Core auto-discovery namespace'ten okur, manuel ayar gerekmez.
+- `IDesignTimeDbContextFactory<TenantDbContext>` (`TenantDbContextDesignFactory`) yalniz `dotnet ef` komutlari icin; runtime'da kullanilmaz. ITenantContext olmadan migration scaffold uretmek icin gereklidir.
 
 ## Code Style
 
@@ -141,8 +145,10 @@ CRM_Leads, CRM_Contacts
 | Run | `dotnet run --project src/Cms.Web` |
 | Run (modulsuz) | `dotnet run --project src/Cms.Web` |
 | Format | `dotnet format` |
-| Migration ekle (master) | `dotnet ef migrations add <Name> --project src/Cms.Core --startup-project src/Cms.Web --output-dir Data/Migrations` |
-| Migration uygula | `dotnet ef database update --project src/Cms.Core --startup-project src/Cms.Web` |
+| Master migration ekle | `dotnet ef migrations add <Name> --project src/Cms.Core --startup-project src/Cms.Web --context MasterDbContext --output-dir Data/Migrations/Master` |
+| Master DB guncelle | `dotnet ef database update --project src/Cms.Core --startup-project src/Cms.Web --context MasterDbContext` |
+| Tenant migration ekle | `dotnet ef migrations add <Name> --project src/Cms.Core --startup-project src/Cms.Web --context TenantDbContext --output-dir Data/Migrations/Tenant` |
+| Tenant DB guncelle | `dotnet ef database update --project src/Cms.Core --startup-project src/Cms.Web --context TenantDbContext --connection "<tenant_conn_string>"` |
 | Default admin (Dev) | `appsettings.Development.json` -> `Auth:DefaultAdmin` (Email/Password). Sadece IsDevelopment() iken seed olur. |
 
 ## Solution Dosyasi

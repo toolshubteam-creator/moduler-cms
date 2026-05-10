@@ -4,7 +4,7 @@
 > Geçmiş kayıt değil — gelecek-bakışlı.
 > Her adım başında okunur, sonunda güncellenir.
 
-**Son güncelleme:** Faz-1.5 — D-001 kapatildi (Cms.Web Directory.Build.targets guard); D-007/D-008/D-009 eklendi (Faz-7 production hardening); D-010 eklendi (Login E2E Windows reverse-DNS quirk).
+**Son güncelleme:** Faz-2.2 — D-011 eklendi (Tenant connection string encryption, Faz-7 tetigi).
 
 ---
 
@@ -60,6 +60,11 @@ ID formatı: `D-001`, `D-002`... (sıralı, silinince ID tekrar kullanılmaz)
 **Tetik:** Faz-7 (production hardening)
 **Eklenme:** Faz-1.5
 
+### D-011 — Tenant connection string encryption
+**Bağlam:** `Sys_Tenants.ConnectionString` su an duz metin saklaniyor. Production'da DB'de SECRET_KEY ile sifrelenmeli, runtime'da decrypt edilip `TenantDbContextFactory.Create`'e gecirilmeli. Azure Key Vault, AWS Secrets Manager veya basit `IDataProtectionProvider` (ASP.NET Core dahili) entegrasyonu.
+**Tetik:** Faz-7 (production hardening)
+**Eklenme:** Faz-2.2
+
 ### D-010 — Login E2E test (Windows reverse-DNS quirk)
 **Bağlam:** Faz-1.5'te `WebApplicationFactory<Program>` + Testcontainers MySQL kombinasyonu Windows host'ta `Host 'EXERT_2024_01' is not allowed` hatasi verdi. UserService unit testleri ayni container ile calisiyor — sorun Web host'un MySQL baglanti path'i ile sinirli, MySQL reverse-DNS Windows machine name'i `mysql.user` tablosundaki host eslesmesini bozuyor. 4 fix denendi (127.0.0.1 zorlama, --skip-name-resolve flag, manuel root GRANT, vs.) — tutmadi. Manuel UI ile login akisi (form, hatali parola, basarili login + cookie, logout) sirayla dogrulandi. AccountControllerLoginTests.cs silindi; Microsoft.AspNetCore.Mvc.Testing paketi ve Cms.Tests -> Cms.Web ProjectReference kaldi (Linux CI'da geri donecek).
 **Tetik:** Linux CI/CD eklendiginde (Faz-7 production hardening) — Linux runner'da reverse-DNS sorunu yok, test direkt yesil donecek.
@@ -77,11 +82,11 @@ ID formatı: `D-001`, `D-002`... (sıralı, silinince ID tekrar kullanılmaz)
 | Faz-4 | 0 |
 | Faz-5 | 0 |
 | Faz-6 | 0 |
-| Faz-7 | 4 (D-007, D-008, D-009, D-010) |
+| Faz-7 | 5 (D-007, D-008, D-009, D-010, D-011) |
 | Faz-8 | 1 (D-006) |
 | v2 | 1 (D-004) |
 
-**Toplam aktif:** 8
+**Toplam aktif:** 9
 
 ---
 
