@@ -39,10 +39,11 @@ builder.Services.AddAuthorization();
 
 builder.Services.AddCmsAuthorization();
 
-var modules = builder.Services.AddCmsModules(builder.Configuration);
+builder.Services.AddCmsModuleSystem(builder.Configuration);
 
 var app = builder.Build();
 
+var modules = await app.LoadCmsModulesAsync();
 await modules.InstallCmsModulesAsync();
 
 using (var seedScope = app.Services.CreateScope())

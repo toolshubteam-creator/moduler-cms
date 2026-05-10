@@ -4,31 +4,33 @@ using Cms.Abstractions.Modules;
 using Microsoft.AspNetCore.Routing;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
 
 public static class ModuleHostExtensions
 {
-    /// <summary>ModuleLoader'i DI'ye kaydet ve modulleri yukle. RegisterServices'i her modul icin cagir.</summary>
-    public static IReadOnlyList<ModuleDescriptor> AddCmsModules(
+    public static IServiceCollection AddCmsModuleSystem(
         this IServiceCollection services,
         IConfiguration configuration)
     {
         services.Configure<ModuleLoaderOptions>(configuration.GetSection(ModuleLoaderOptions.SectionName));
         services.AddSingleton<IModuleLoader, ModuleLoader>();
-
-        var sp = services.BuildServiceProvider();
-        var loader = sp.GetRequiredService<IModuleLoader>();
-        var modules = loader.LoadAll();
-
-        foreach (var module in modules)
-        {
-            module.Instance.RegisterServices(services, configuration);
-        }
-
-        services.AddSingleton<IReadOnlyList<ModuleDescriptor>>(modules);
-        return modules;
+        services.AddSingleton<ModuleDescriptorRegistry>();
+        services.AddSingleton<IReadOnlyList<ModuleDescriptor>>(sp =>
+            sp.GetRequiredService<ModuleDescriptorRegistry>().Modules);
+        return services;
     }
 
-    /// <summary>Modullerin endpoint'lerini routing'e bagla.</summary>
+    public static Task<IReadOnlyList<ModuleDescriptor>> LoadCmsModulesAsync(this IHost host)
+    {
+        var loader = host.Services.GetRequiredService<IModuleLoader>();
+        var registry = host.Services.GetRequiredService<ModuleDescriptorRegistry>();
+
+        var modules = loader.LoadAll();
+        registry.Set(modules);
+
+        return Task.FromResult(modules);
+    }
+
     public static void MapCmsModules(this IEndpointRouteBuilder endpoints, IReadOnlyList<ModuleDescriptor> modules)
     {
         foreach (var module in modules)
@@ -40,7 +42,6 @@ public static class ModuleHostExtensions
         }
     }
 
-    /// <summary>Tum modullerin OnInstallAsync'ini sirayla calistir.</summary>
     public static async Task InstallCmsModulesAsync(
         this IReadOnlyList<ModuleDescriptor> modules,
         CancellationToken cancellationToken = default)

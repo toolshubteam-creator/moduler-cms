@@ -4,7 +4,7 @@
 > Geçmiş kayıt değil — gelecek-bakışlı.
 > Her adım başında okunur, sonunda güncellenir.
 
-**Son güncelleme:** Faz-2.3 — D-012 (permission cache, Faz-3 tetigi) ve D-013 (orphan permission cleanup admin UI, Faz-7 tetigi) eklendi.
+**Son güncelleme:** Faz-2.4a — D-005 kapatildi (composition root rework, BuildServiceProvider() kaldirildi); D-014 (modul RegisterServices DI integration, Faz-5 tetigi) ve D-015 (xUnit test parallelization, test suresi 15dk asarsa tetik) eklendi.
 
 ---
 
@@ -35,10 +35,15 @@ ID formatı: `D-001`, `D-002`... (sıralı, silinince ID tekrar kullanılmaz)
 **Tetik:** v2 (Faz-8 sonrasi backlog)
 **Eklenme:** Faz-1.2
 
-### D-005 — AddCmsModules icindeki BuildServiceProvider() anti-pattern
-**Bağlam:** Module discovery DI tamamlanmadan once gerekli oldugu icin ServiceCollection.BuildServiceProvider() cagriliyor (multiple service providers). Daha temiz: HostBuilder extension veya StartupTask pattern.
-**Tetik:** Faz-2 (Multi-tenancy + RBAC kurarken composition root yenilenecek)
-**Eklenme:** Faz-1.3
+### D-014 — Modul IModule.RegisterServices DI integration
+**Bağlam:** Faz-2.4a refactor'unda `BuildServiceProvider()` anti-pattern'i kaldirilirken `module.Instance.RegisterServices(services, configuration)` cagrisi da no-op kaldi (composition root build sonrasi modul yuklendigi icin DI'ye yeni servis ekleme penceresi kapaniyor). Modul yazimi Faz-5 (Blog modulu) ile basladiginda module'ler kendi servislerini DI'ye ekleyebilmeli. Cozum yollari: (a) `WebApplicationBuilder.UseCmsModules()` build oncesi modul DLL'lerini kesfedip RegisterServices'i normal DI registration phase'inde cagiran extension; (b) tenant-scoped servis kayit pattern'i (per-request service collection); (c) source generator + reflection ile compile-time module manifest.
+**Tetik:** Faz-5 (Blog modulu — ilk gercek RegisterServices kullanimi)
+**Eklenme:** Faz-2.4a
+
+### D-015 — xUnit test parallelization
+**Bağlam:** `[Collection(MySqlCollection.Name)]` pattern test class'larini sequential calistiriyor. DB-bagimli test sayisi arttikca calisma suresi lineer buyumeyor (Faz-2.3: 26 test → 9dk). Cozum: `MySqlContainerFixture`'i Collection yerine her test class icin `IClassFixture<>` ile ayri-ayri kullanmak (her class kendi container'ini ayaga kaldirir, paralel calisir) veya CollectionFixture'i statik singleton'a indirmek (DB'ler izole, container paylasimli, AMA xUnit class-paralel destekler hale getirmek). Risk: Docker Desktop'in es zamanli birden cok MySQL container'ini kararli yonetmemesi.
+**Tetik:** Test suresi 15dk asarsa (mevcut trend Faz-2.4 sonrasi devam ederse)
+**Eklenme:** Faz-2.4a
 
 ### D-006 — Module hot-reload + AssemblyLoadContext.Unload
 **Bağlam:** Collectible context kuruldu ama unload mekanizmasi (admin panelinden modul kaldirma/yenileme) henuz yok. ModuleLoader.UnloadAsync veya ModuleManager service'i.
@@ -87,16 +92,17 @@ ID formatı: `D-001`, `D-002`... (sıralı, silinince ID tekrar kullanılmaz)
 | Tetik Faz | Bekleyen Madde Sayısı |
 |---|---|
 | Faz-1 | 0 |
-| Faz-2 | 1 (D-005) |
+| Faz-2 | 0 |
 | Faz-3 | 2 (D-002 alternatif Faz-6, D-012) |
 | Faz-4 | 0 |
-| Faz-5 | 0 |
+| Faz-5 | 1 (D-014) |
 | Faz-6 | 0 |
 | Faz-7 | 6 (D-007, D-008, D-009, D-010, D-011, D-013) |
 | Faz-8 | 1 (D-006) |
 | v2 | 1 (D-004) |
+| Tetik: test suresi 15dk | 1 (D-015) |
 
-**Toplam aktif:** 11
+**Toplam aktif:** 12
 
 ---
 
@@ -108,6 +114,10 @@ ID formatı: `D-001`, `D-002`... (sıralı, silinince ID tekrar kullanılmaz)
 ### D-001 — Cms.Web → Cms.Modules.* referans guard
 **Kapatildi:** Faz-1.5
 **Cozum:** `src/Cms.Web/Directory.Build.targets` icine MSBuild target eklendi (`GuardAgainstModuleProjectReferences`). Cms.Web.csproj'a `Cms.Modules.*` prefix'li ProjectReference eklenmesi build-time'da hata firlatir. Negatif test ile dogrulandi (sahte `Cms.Modules.Fake` ref eklendi -> build fail; ref kaldirildi -> build yesil).
+
+### D-005 — AddCmsModules icindeki BuildServiceProvider() anti-pattern
+**Kapatildi:** Faz-2.4a
+**Cozum:** `AddCmsModules` ikiye bolundu — `AddCmsModuleSystem` (DI kayitlari, build oncesi, servisleri ve `ModuleDescriptorRegistry` singleton'i ekler) + `LoadCmsModulesAsync` (build sonrasi `IHost` extension, modulleri yukleyip registry'ye yazar). `BuildServiceProvider()` cagrisi tamamen kaldirildi. `ModuleDescriptorRegistry` mutable holder pattern'i sayesinde DI'ye `IReadOnlyList<ModuleDescriptor>` sorgu zamani uretilebilir hale geldi (PermissionSeeder, TenantDbContextFactory, TenantDbContext bu list'i lazy resolve eder). Trade-off: `IModule.RegisterServices` cagrisi simdilik no-op — yeni D-014 olarak takipte.
 
 ---
 
