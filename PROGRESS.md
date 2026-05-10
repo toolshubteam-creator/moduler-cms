@@ -3,7 +3,7 @@
 > Bu dosya **canlı** durum dosyasıdır. Her adım sonunda güncellenir.
 > Sade tutuyoruz; detaylı task listesi her fazın açılışında konuşulup üretilir.
 
-**Son güncelleme:** Faz-2.2 (TenantDbContext factory) — DONE
+**Son güncelleme:** Faz-2.3 (RBAC permission system) — DONE
 
 ---
 
@@ -45,13 +45,14 @@
 |---|---|---|
 | 2.1 | Tenant resolver + ITenantContext | 🟢 DONE |
 | 2.2 | TenantDbContext factory | 🟢 DONE |
-| 2.3 | RBAC: Permission system + [HasPermission] | ⚪ TODO |
+| 2.3 | RBAC: Permission system + [HasPermission] | 🟢 DONE |
 | 2.4 | Tenant CRUD + ilk tenant olusturma | ⚪ TODO |
 
 ---
 
 ## Yapılanlar (kronolojik, en yeni üstte)
 
+- **Faz-2.3** (commit: `959d99a`): IPermissionService + PermissionService (SuperAdmin bypass: IsSystem=true rolu kontrolu atlar; tenant-scoped query: TenantId match veya null = global rol) + HasPermissionAttribute (AuthorizeAttribute miras, "perm:&lt;key&gt;" policy adi) + HasPermissionRequirement + HasPermissionHandler (ITenantContext'ten tenant id, ClaimTypes.NameIdentifier'dan userId) + HasPermissionPolicyProvider (DefaultAuthorizationPolicyProvider fallback ile dinamik on-demand policy uretimi) + PermissionSeeder (idempotent reconcile: yoksa ekler, varsa DisplayName/Description gunceller, ORPHAN PERMISSION'LARI SILMEZ; modul prefix validation) + AddCmsAuthorization DI extension + Cms.Web startup'ta seeder.ReconcileAsync(). 13 yeni test (6 PermissionService + 4 PermissionSeeder + 3 HasPermissionHandler unit). Toplam 56 test yesil.
 - **Faz-2.2** (commits: `15b95c0` 2.2a refactor, `27b38e6` 2.2b feat): MySqlContainerFixture (tek container, izole DB per test, paylasilan ICollectionFixture, **5.4x test hizlanma** — 11dk -> 2dk) + TenantDbContext (modul entity'leri runtime kayit, IHasEntities.RegisterEntities cagrilir, cekirdek DbSet yok) + TenantDbContextFactory (singleton, dinamik conn string) + TenantDbContextProvider (scoped, ITenantContext'ten conn string al, lazy create, tenant resolution sart) + AddCmsTenantData DI extension + Master/Tenant migration klasor ayrimi (Data/Migrations/Master, Data/Migrations/Tenant) + InitialTenant migration (bos schema + EFMigrationsHistory) + IDesignTimeDbContextFactory&lt;TenantDbContext&gt; (dotnet ef komutlari icin) + 4 yeni test (2 factory unit + 2 TenantDbContext integration). **FIX-01 (2.2a):** EF Migrations advisory lock formati `__<dbname>_EFMigrationsLock` 64 char sinirini geciyordu (test_<prefix>_<guid32> 46 char + lock overhead 21 char = 67 > 64). DB adi `t_<prefix>_<guid16>` formatina indirilip 40 char ile sinirlandi. Toplam 43 test yesil.
 - **Faz-2.1** (commit: `e299bc6`): TenancyOptions + ITenantContext (scoped, Set() bir kez) + TenantContext (internal) + ITenantResolver + SubdomainTenantResolver (host'tan slug cikarma + dev query fallback) + TenantResolutionMiddleware (bypass paths /Account, /admin; bilinmeyen tenant 404) + AddCmsTenancy DI + UseTenantResolution() pipeline + appsettings Tenancy:RootDomain/AllowQueryFallback. Cms.Core'a InternalsVisibleTo Cms.Tests eklendi (TenantContext internal). 7 resolver Testcontainers MySQL test + 3 TenantContext unit test. Toplam 39 test yesil. Manuel cURL ile dogrulandi: /Account/Login bypass=200, /=404 (root host'a tenant resolution uygulaniyor, beklenen davranis), /?tenant=acme=302 (tenant cozuldu, Authorize), /?tenant=unknown=404 + "Tenant bulunamadi.".
 - **Faz-1.5** (commit: `de44a9b`): IUserService + UserService + AuthenticationResult + AccountController (Login GET/POST + Logout) + LoginViewModel + minimal Razor view'lar (_ViewImports/_ViewStart/_Layout/Account/Login) + cookie authentication (`AddCookie`, /Account/Login path) + dev admin seed (Auth:DefaultAdmin) + Auth:DefaultAdmin appsettings.Development.json + 4 UserService Testcontainers integration testi. **FIX-01:** Login E2E (WebApplicationFactory + Testcontainers MySQL) Windows reverse-DNS quirk ile patladi (4 fix denendi, tutmadi); test silindi, manuel UI ile dogrulandi (form, hatali parola error, basarili login + cookie, logout cookie iptal). DEFERRED.md D-010 olarak Faz-7'ye yazildi. **FIX-02:** Faz-1.4'teki UserRole composite PK (UserId, RoleId, TenantId?) EF Core nullable composite key kuralinda Add'i reddetti — surrogate int Id PK + (UserId, RoleId, TenantId) UNIQUE INDEX ile fix; yeni migration `FixUserRolePrimaryKey`, FK drop sirasi manuel duzeltildi. **FIX-03:** D-001 kapandi — `src/Cms.Web/Directory.Build.targets` ile Cms.Web -> Cms.Modules.* ProjectReference build-time guard, negatif test ile dogrulandi. Toplam 29 test yesil.
@@ -65,8 +66,7 @@
 
 ## Sıradaki
 
-- **Faz-2.3:** RBAC: Permission system, [HasPermission] attribute, role assignment UI/API.
-- **Faz-2.4:** Tenant CRUD + ilk tenant olusturma akisi. D-005 (composition root rework) burada kapanir.
+- **Faz-2.4:** Tenant CRUD + ilk tenant olusturma akisi. D-005 (composition root rework) burada kapanir. Role assignment UI/API.
 
 ---
 

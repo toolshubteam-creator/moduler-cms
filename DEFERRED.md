@@ -4,7 +4,7 @@
 > Geçmiş kayıt değil — gelecek-bakışlı.
 > Her adım başında okunur, sonunda güncellenir.
 
-**Son güncelleme:** Faz-2.2 — D-011 eklendi (Tenant connection string encryption, Faz-7 tetigi).
+**Son güncelleme:** Faz-2.3 — D-012 (permission cache, Faz-3 tetigi) ve D-013 (orphan permission cleanup admin UI, Faz-7 tetigi) eklendi.
 
 ---
 
@@ -60,6 +60,16 @@ ID formatı: `D-001`, `D-002`... (sıralı, silinince ID tekrar kullanılmaz)
 **Tetik:** Faz-7 (production hardening)
 **Eklenme:** Faz-1.5
 
+### D-012 — Permission cache invalidation
+**Bağlam:** `PermissionService.HasPermissionAsync` her cagrida `Sys_UserRoles` + `Sys_RolePermissions` joinleyen SQL atar. Production'da `IMemoryCache` ile per-(userId, tenantId) permission set cache + role/permission degistiginde invalidation gerek.
+**Tetik:** Faz-3 (Generic CRUD + Audit) — cache infrastructure orada kurulacak.
+**Eklenme:** Faz-2.3
+
+### D-013 — Orphan permission cleanup admin UI
+**Bağlam:** `PermissionSeeder` orphan permission'lari silmez (kullanici atamalari kaybolmasin diye). Modul kaldirildiktan sonra Sys_Permissions'ta kalan satirlari admin UI'dan temizleme akisi gerek (manuel onay + role atamalari raporu + bulk delete).
+**Tetik:** Faz-7 (production hardening)
+**Eklenme:** Faz-2.3
+
 ### D-011 — Tenant connection string encryption
 **Bağlam:** `Sys_Tenants.ConnectionString` su an duz metin saklaniyor. Production'da DB'de SECRET_KEY ile sifrelenmeli, runtime'da decrypt edilip `TenantDbContextFactory.Create`'e gecirilmeli. Azure Key Vault, AWS Secrets Manager veya basit `IDataProtectionProvider` (ASP.NET Core dahili) entegrasyonu.
 **Tetik:** Faz-7 (production hardening)
@@ -78,15 +88,15 @@ ID formatı: `D-001`, `D-002`... (sıralı, silinince ID tekrar kullanılmaz)
 |---|---|
 | Faz-1 | 0 |
 | Faz-2 | 1 (D-005) |
-| Faz-3 | 1 (D-002, alternatif Faz-6) |
+| Faz-3 | 2 (D-002 alternatif Faz-6, D-012) |
 | Faz-4 | 0 |
 | Faz-5 | 0 |
 | Faz-6 | 0 |
-| Faz-7 | 5 (D-007, D-008, D-009, D-010, D-011) |
+| Faz-7 | 6 (D-007, D-008, D-009, D-010, D-011, D-013) |
 | Faz-8 | 1 (D-006) |
 | v2 | 1 (D-004) |
 
-**Toplam aktif:** 9
+**Toplam aktif:** 11
 
 ---
 

@@ -115,6 +115,10 @@ CRM_Leads, CRM_Contacts
 - Tenant DB conn string'i `ITenantContext.Current.ConnectionString`'ten alinir (scoped). `TenantDbContextProvider` request basina lazy yaratim yapar; tenant resolution tamamlanmadan istek atilirsa `InvalidOperationException`.
 - Master ve Tenant migrations ayri klasorlerde: `src/Cms.Core/Data/Migrations/Master/` ve `src/Cms.Core/Data/Migrations/Tenant/`. EF Core auto-discovery namespace'ten okur, manuel ayar gerekmez.
 - `IDesignTimeDbContextFactory<TenantDbContext>` (`TenantDbContextDesignFactory`) yalniz `dotnet ef` komutlari icin; runtime'da kullanilmaz. ITenantContext olmadan migration scaffold uretmek icin gereklidir.
+- Permission key konvansiyonu: lowercase, `module_id.resource.action` formati (orn. `blog.posts.create`). Modul prefix'i (Manifest.Id) ile baslamali; `PermissionSeeder` validation yapar, prefix'siz key'ler atlanir + warning loglanir.
+- IsSystem=true rolu (orn. seed'lenen `Admin`) `PermissionService` kontrolunu BYPASS eder — SuperAdmin pattern. Hem `HasPermissionAsync` hem `GetUserPermissionsAsync` (tum permission'lari doner) bu davranisi uygular.
+- `PermissionSeeder` STARTUP-TIME idempotent: yoksa ekler, varsa DisplayName/Description/ModuleId gunceller, **orphan permission'lari SILMEZ** (kullanici atamalari kaybolmasin diye; manuel cleanup admin UI'da, D-013).
+- `[HasPermission]` attribute dinamik policy ile (`HasPermissionPolicyProvider`) on-demand uretilir; `services.AddPolicy(...)` cagrisi gerekmez.
 
 ## Code Style
 
@@ -171,6 +175,7 @@ CRM_Leads, CRM_Contacts
 - **`appsettings.Development.json`'i COMMIT ETME** — DB sifresi icerir, `.gitignore`'da. Repo'da sadece `appsettings.json` (bos `ConnectionStrings:Master`) bulunur.
 - **xUnit `IAsyncLifetime` `ValueTask` kullanma** — `Task` doner, `ValueTask` degil. xUnit 2.9.2 sozlesmesi. Plan/template'ler ne derse desin, derleyici hatasi alirsan `Task`'a cevir.
 - **EF Core auto-generated migration dosyalarini elle stil-fix etme** — `Data/Migrations/` altinda block-style namespace kullanir. `.editorconfig` IDE0161'i bu klasor icin gevsetir; manuel duzeltme yalniz gercek migration hatalari (FK drop sirasi, vb.) icindir.
+- **`[HasPermission]` attribute'unu bypass path'lerde (/Account, /admin) kullanma** — TenantResolutionMiddleware tenant cozumunu atlar, ITenantContext.IsResolved=false kalir; permission DB query'si icin tenant id NULL gider (global rol scope'u). Eger amac tenant-bagimsiz bir permission ise tasarim kararli yap, aksi takdirde tenantli alandan kullan.
 
 ## Definition of Done (her adım için)
 
