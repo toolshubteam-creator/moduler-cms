@@ -4,7 +4,7 @@
 > Geçmiş kayıt değil — gelecek-bakışlı.
 > Her adım başında okunur, sonunda güncellenir.
 
-**Son güncelleme:** Faz-2.4a — D-005 kapatildi (composition root rework, BuildServiceProvider() kaldirildi); D-014 (modul RegisterServices DI integration, Faz-5 tetigi) ve D-015 (xUnit test parallelization, test suresi 15dk asarsa tetik) eklendi.
+**Son güncelleme:** Faz-2.4b — D-016 (production tenant DB provisioning credentials, Faz-7 tetigi) eklendi.
 
 ---
 
@@ -75,6 +75,11 @@ ID formatı: `D-001`, `D-002`... (sıralı, silinince ID tekrar kullanılmaz)
 **Tetik:** Faz-7 (production hardening)
 **Eklenme:** Faz-2.3
 
+### D-016 — Production tenant DB provisioning credentials
+**Bağlam:** Faz-2.4b'de uygulamanin DB user'i (`cms_dev`) tenant DB'lerini yaratabilmek icin CREATE/DROP ON *.* yetkisine sahip (development convenience). Production'da uygulama runtime user'i sinirli yetkili olmali; ayri bir admin user (orn. `cms_provisioner`) sadece DB lifecycle (`CREATE DATABASE`, `DROP DATABASE`, `GRANT`) icin kullanilmali ya da Hashicorp Vault / Azure Key Vault dinamik credentials. `ITenantProvisioningService` yapisi farkli connection string desteklemek icin halen acik (Connection options sub-section ayri).
+**Tetik:** Faz-7 (production hardening)
+**Eklenme:** Faz-2.4b
+
 ### D-011 — Tenant connection string encryption
 **Bağlam:** `Sys_Tenants.ConnectionString` su an duz metin saklaniyor. Production'da DB'de SECRET_KEY ile sifrelenmeli, runtime'da decrypt edilip `TenantDbContextFactory.Create`'e gecirilmeli. Azure Key Vault, AWS Secrets Manager veya basit `IDataProtectionProvider` (ASP.NET Core dahili) entegrasyonu.
 **Tetik:** Faz-7 (production hardening)
@@ -97,12 +102,12 @@ ID formatı: `D-001`, `D-002`... (sıralı, silinince ID tekrar kullanılmaz)
 | Faz-4 | 0 |
 | Faz-5 | 1 (D-014) |
 | Faz-6 | 0 |
-| Faz-7 | 6 (D-007, D-008, D-009, D-010, D-011, D-013) |
+| Faz-7 | 7 (D-007, D-008, D-009, D-010, D-011, D-013, D-016) |
 | Faz-8 | 1 (D-006) |
 | v2 | 1 (D-004) |
 | Tetik: test suresi 15dk | 1 (D-015) |
 
-**Toplam aktif:** 12
+**Toplam aktif:** 13
 
 ---
 

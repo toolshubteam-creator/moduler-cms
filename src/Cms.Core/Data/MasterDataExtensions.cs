@@ -29,6 +29,7 @@ public static class MasterDataExtensions
         services.Configure<TenancyOptions>(configuration.GetSection(TenancyOptions.SectionName));
         services.AddScoped<ITenantContext, TenantContext>();
         services.AddScoped<ITenantResolver, SubdomainTenantResolver>();
+        services.AddScoped<ITenantProvisioningService, TenantProvisioningService>();
         return services;
     }
 
