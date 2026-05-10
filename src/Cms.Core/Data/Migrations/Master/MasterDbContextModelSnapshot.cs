@@ -8,7 +8,7 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
 
-namespace Cms.Core.Data.Migrations
+namespace Cms.Core.Data.Migrations.Master
 {
     [DbContext(typeof(MasterDbContext))]
     partial class MasterDbContextModelSnapshot : ModelSnapshot

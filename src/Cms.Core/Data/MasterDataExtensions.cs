@@ -29,4 +29,12 @@ public static class MasterDataExtensions
         services.AddScoped<ITenantResolver, SubdomainTenantResolver>();
         return services;
     }
+
+    public static IServiceCollection AddCmsTenantData(this IServiceCollection services)
+    {
+        services.AddSingleton<ITenantDbContextFactory, TenantDbContextFactory>();
+        services.AddScoped<TenantDbContextProvider>();
+        services.AddScoped<TenantDbContext>(sp => sp.GetRequiredService<TenantDbContextProvider>().Get());
+        return services;
+    }
 }

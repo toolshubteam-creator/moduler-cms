@@ -4,7 +4,7 @@ using Microsoft.EntityFrameworkCore.Migrations;
 
 #nullable disable
 
-namespace Cms.Core.Data.Migrations
+namespace Cms.Core.Data.Migrations.Master
 {
     /// <inheritdoc />
     public partial class InitialAuth : Migration

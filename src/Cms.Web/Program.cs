@@ -24,6 +24,8 @@ builder.Services.AddCmsMaster(builder.Configuration);
 
 builder.Services.AddCmsTenancy(builder.Configuration);
 
+builder.Services.AddCmsTenantData();
+
 builder.Services
     .AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme)
     .AddCookie(options =>
