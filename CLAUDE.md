@@ -163,6 +163,8 @@ CRM_Leads, CRM_Contacts
 - **MediatR** kullanma — Mediator (martinothamar) kullaniyoruz. MediatR v13+ ticari lisansli, v12 arsivlendi.
 - **Cms.Abstractions framework-bagimsiz degildir** — ASP.NET Core ve EF Core abstractions'a kasitli baglidir. Baska web framework'une tasima plani yoktur.
 - **`appsettings.Development.json`'i COMMIT ETME** — DB sifresi icerir, `.gitignore`'da. Repo'da sadece `appsettings.json` (bos `ConnectionStrings:Master`) bulunur.
+- **xUnit `IAsyncLifetime` `ValueTask` kullanma** — `Task` doner, `ValueTask` degil. xUnit 2.9.2 sozlesmesi. Plan/template'ler ne derse desin, derleyici hatasi alirsan `Task`'a cevir.
+- **EF Core auto-generated migration dosyalarini elle stil-fix etme** — `Data/Migrations/` altinda block-style namespace kullanir. `.editorconfig` IDE0161'i bu klasor icin gevsetir; manuel duzeltme yalniz gercek migration hatalari (FK drop sirasi, vb.) icindir.
 
 ## Definition of Done (her adım için)
 
