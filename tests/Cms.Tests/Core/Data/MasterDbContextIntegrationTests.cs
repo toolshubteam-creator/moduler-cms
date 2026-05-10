@@ -2,28 +2,27 @@ namespace Cms.Tests.Core.Data;
 
 using Cms.Core.Data;
 using Cms.Core.Data.Entities;
+using Cms.Tests.Infrastructure;
 using FluentAssertions;
 using Microsoft.EntityFrameworkCore;
-using Testcontainers.MySql;
 using Xunit;
 
-public class MasterDbContextIntegrationTests : IAsyncLifetime
+[Collection(MySqlCollection.Name)]
+public class MasterDbContextIntegrationTests(MySqlContainerFixture fixture) : IAsyncLifetime
 {
-    private readonly MySqlContainer _container = new MySqlBuilder()
-        .WithImage("mysql:8.0")
-        .WithDatabase("cms_test")
-        .WithUsername("test")
-        .WithPassword("Test_Password_2026!")
-        .Build();
+    private string _connStr = string.Empty;
 
-    public async Task InitializeAsync() => await _container.StartAsync();
+    public async Task InitializeAsync()
+    {
+        _connStr = await fixture.CreateDatabaseAsync("master");
+    }
 
-    public async Task DisposeAsync() => await _container.DisposeAsync();
+    public Task DisposeAsync() => fixture.DropDatabaseAsync(_connStr);
 
     private MasterDbContext CreateContext()
     {
         var options = new DbContextOptionsBuilder<MasterDbContext>()
-            .UseMySql(_container.GetConnectionString(), ServerVersion.AutoDetect(_container.GetConnectionString()))
+            .UseMySql(_connStr, ServerVersion.AutoDetect(_connStr))
             .Options;
         return new MasterDbContext(options);
     }

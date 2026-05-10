@@ -3,30 +3,29 @@ namespace Cms.Tests.Core.Tenancy;
 using Cms.Core.Data;
 using Cms.Core.Data.Entities;
 using Cms.Core.Tenancy;
+using Cms.Tests.Infrastructure;
 using FluentAssertions;
 using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
-using Testcontainers.MySql;
 using Xunit;
 
-public class SubdomainTenantResolverTests : IAsyncLifetime
+[Collection(MySqlCollection.Name)]
+public class SubdomainTenantResolverTests(MySqlContainerFixture fixture) : IAsyncLifetime
 {
-    private readonly MySqlContainer _container = new MySqlBuilder()
-        .WithImage("mysql:8.0")
-        .WithDatabase("cms_test")
-        .WithUsername("test")
-        .WithPassword("Test_Password_2026!")
-        .Build();
+    private string _connStr = string.Empty;
 
-    public async Task InitializeAsync() => await _container.StartAsync();
+    public async Task InitializeAsync()
+    {
+        _connStr = await fixture.CreateDatabaseAsync("resolver");
+    }
 
-    public async Task DisposeAsync() => await _container.DisposeAsync();
+    public Task DisposeAsync() => fixture.DropDatabaseAsync(_connStr);
 
     private MasterDbContext CreateContext()
     {
         var options = new DbContextOptionsBuilder<MasterDbContext>()
-            .UseMySql(_container.GetConnectionString(), ServerVersion.AutoDetect(_container.GetConnectionString()))
+            .UseMySql(_connStr, ServerVersion.AutoDetect(_connStr))
             .Options;
         return new MasterDbContext(options);
     }
