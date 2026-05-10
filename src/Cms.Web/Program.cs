@@ -3,6 +3,7 @@ using Cms.Core.Auth;
 using Cms.Core.Data;
 using Cms.Core.Data.Entities;
 using Cms.Core.Modules;
+using Cms.Core.Tenancy;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.EntityFrameworkCore;
 using Serilog;
@@ -20,6 +21,8 @@ builder.Host.UseSerilog((context, services, configuration) =>
 builder.Services.AddControllersWithViews();
 
 builder.Services.AddCmsMaster(builder.Configuration);
+
+builder.Services.AddCmsTenancy(builder.Configuration);
 
 builder.Services
     .AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme)
@@ -51,6 +54,8 @@ else
 app.UseHttpsRedirection();
 app.UseStaticFiles();
 app.UseRouting();
+
+app.UseTenantResolution();
 
 app.UseAuthentication();
 app.UseAuthorization();
