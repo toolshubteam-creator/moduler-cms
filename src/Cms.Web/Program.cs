@@ -1,5 +1,6 @@
 using System.Globalization;
 using Cms.Core.Auth;
+using Cms.Core.Authorization;
 using Cms.Core.Data;
 using Cms.Core.Data.Entities;
 using Cms.Core.Modules;
@@ -35,7 +36,14 @@ builder.Services
         options.AccessDeniedPath = "/Account/Login";
     });
 
-builder.Services.AddAuthorization();
+builder.Services.AddAuthorization(options =>
+{
+    options.AddPolicy("SystemRole", policy =>
+    {
+        policy.RequireAuthenticatedUser();
+        policy.AddRequirements(new SystemRoleRequirement());
+    });
+});
 
 builder.Services.AddCmsAuthorization();
 
@@ -72,6 +80,10 @@ app.UseAuthentication();
 app.UseAuthorization();
 
 app.MapCmsModules(modules);
+
+app.MapControllerRoute(
+    name: "areas",
+    pattern: "{area:exists}/{controller=Home}/{action=Index}/{id?}");
 
 app.MapControllerRoute(
     name: "default",

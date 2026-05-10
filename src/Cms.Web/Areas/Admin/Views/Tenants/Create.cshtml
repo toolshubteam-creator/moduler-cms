@@ -1,0 +1,26 @@
+@model CreateTenantViewModel
+@{
+    ViewData["Title"] = "Yeni Tenant";
+}
+
+<h1>Yeni Tenant</h1>
+
+<form asp-action="Create" method="post">
+    <div asp-validation-summary="All"></div>
+
+    <div>
+        <label asp-for="Slug"></label>
+        <input asp-for="Slug" autocomplete="off" />
+        <span asp-validation-for="Slug"></span>
+        <small>Sadece kucuk harf, rakam ve tire. 3-31 karakter.</small>
+    </div>
+
+    <div>
+        <label asp-for="DisplayName"></label>
+        <input asp-for="DisplayName" autocomplete="off" />
+        <span asp-validation-for="DisplayName"></span>
+    </div>
+
+    <button type="submit">Olustur</button>
+    <a asp-action="Index">Iptal</a>
+</form>

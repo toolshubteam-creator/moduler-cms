@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Admin - @ViewData["Title"]</title>
+</head>
+<body>
+    <header>
+        <nav>
+            <strong>CMS Admin</strong>
+            <a asp-area="Admin" asp-controller="Tenants" asp-action="Index">Tenant'lar</a>
+            <span>|</span>
+            <span>@User.Identity?.Name</span>
+            <form asp-area="" asp-controller="Account" asp-action="Logout" method="post" style="display:inline;">
+                <button type="submit">Cikis</button>
+            </form>
+        </nav>
+    </header>
+    <main>
+        @if (TempData["SuccessMessage"] is string ok)
+        {
+            <div role="alert" style="color:green;">@ok</div>
+        }
+        @if (TempData["ErrorMessage"] is string err)
+        {
+            <div role="alert" style="color:red;">@err</div>
+        }
+        @RenderBody()
+    </main>
+</body>
+</html>

@@ -45,6 +45,7 @@ public static class MasterDataExtensions
     {
         services.AddScoped<IPermissionService, PermissionService>();
         services.AddScoped<IAuthorizationHandler, HasPermissionHandler>();
+        services.AddScoped<IAuthorizationHandler, SystemRoleHandler>();
         services.AddSingleton<IAuthorizationPolicyProvider, HasPermissionPolicyProvider>();
         services.AddScoped<PermissionSeeder>();
         return services;
