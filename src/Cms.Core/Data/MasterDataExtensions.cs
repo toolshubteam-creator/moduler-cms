@@ -1,7 +1,9 @@
 namespace Cms.Core.Data;
 
 using Cms.Core.Auth;
+using Cms.Core.Authorization;
 using Cms.Core.Tenancy;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -35,6 +37,15 @@ public static class MasterDataExtensions
         services.AddSingleton<ITenantDbContextFactory, TenantDbContextFactory>();
         services.AddScoped<TenantDbContextProvider>();
         services.AddScoped<TenantDbContext>(sp => sp.GetRequiredService<TenantDbContextProvider>().Get());
+        return services;
+    }
+
+    public static IServiceCollection AddCmsAuthorization(this IServiceCollection services)
+    {
+        services.AddScoped<IPermissionService, PermissionService>();
+        services.AddScoped<IAuthorizationHandler, HasPermissionHandler>();
+        services.AddSingleton<IAuthorizationPolicyProvider, HasPermissionPolicyProvider>();
+        services.AddScoped<PermissionSeeder>();
         return services;
     }
 }

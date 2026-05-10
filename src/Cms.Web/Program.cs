@@ -37,11 +37,19 @@ builder.Services
 
 builder.Services.AddAuthorization();
 
+builder.Services.AddCmsAuthorization();
+
 var modules = builder.Services.AddCmsModules(builder.Configuration);
 
 var app = builder.Build();
 
 await modules.InstallCmsModulesAsync();
+
+using (var seedScope = app.Services.CreateScope())
+{
+    var seeder = seedScope.ServiceProvider.GetRequiredService<Cms.Core.Authorization.PermissionSeeder>();
+    await seeder.ReconcileAsync();
+}
 
 if (app.Environment.IsDevelopment())
 {
