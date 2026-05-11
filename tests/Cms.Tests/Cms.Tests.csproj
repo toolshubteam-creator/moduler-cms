@@ -27,6 +27,8 @@
     <ProjectReference Include="..\..\src\Cms.Web\Cms.Web.csproj" />
     <ProjectReference Include="..\..\src\Modules\Cms.Modules.Media.Contracts\Cms.Modules.Media.Contracts.csproj" />
     <ProjectReference Include="..\..\src\Modules\Cms.Modules.Media\Cms.Modules.Media.csproj" />
+    <ProjectReference Include="..\..\src\Modules\Cms.Modules.Seo.Contracts\Cms.Modules.Seo.Contracts.csproj" />
+    <ProjectReference Include="..\..\src\Modules\Cms.Modules.Seo\Cms.Modules.Seo.csproj" />
     <ProjectReference Include="..\..\src\Modules\Cms.Modules.Settings.Contracts\Cms.Modules.Settings.Contracts.csproj" />
     <ProjectReference Include="..\..\src\Modules\Cms.Modules.Settings\Cms.Modules.Settings.csproj" />
   </ItemGroup>

@@ -1,0 +1,40 @@
+@model MetasController.EditViewModel
+@{
+    var isNew = string.IsNullOrWhiteSpace(Model.TargetType) || string.IsNullOrWhiteSpace(Model.TargetId);
+    ViewData["Title"] = isNew ? "Yeni SEO Meta" : $"SEO Duzenle: {Model.TargetType}/{Model.TargetId}";
+}
+
+<h1>@ViewData["Title"]</h1>
+
+<form asp-action="Edit" method="post">
+    @Html.AntiForgeryToken()
+    <fieldset>
+        <legend>Target</legend>
+        <label>Target Type:
+            <input type="text" name="TargetType" value="@Model.TargetType" maxlength="100" required @(isNew ? "" : "readonly") />
+        </label>
+        <label>Target Id:
+            <input type="text" name="TargetId" value="@Model.TargetId" maxlength="200" required @(isNew ? "" : "readonly") />
+        </label>
+    </fieldset>
+    <fieldset>
+        <legend>Meta</legend>
+        <label>Title:
+            <input type="text" name="Title" value="@Model.Title" maxlength="200" />
+        </label>
+        <label>Description:
+            <textarea name="Description" rows="3" maxlength="500">@Model.Description</textarea>
+        </label>
+        <label>OG Image URL:
+            <input type="text" name="OgImage" value="@Model.OgImage" maxlength="500" />
+        </label>
+        <label>Canonical URL:
+            <input type="text" name="Canonical" value="@Model.Canonical" maxlength="500" />
+        </label>
+        <label>Robots:
+            <input type="text" name="Robots" value="@Model.Robots" maxlength="100" placeholder="index, follow" />
+        </label>
+    </fieldset>
+    <button type="submit">Kaydet</button>
+    <a asp-action="Index">Iptal</a>
+</form>

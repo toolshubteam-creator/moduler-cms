@@ -1,0 +1,61 @@
+@model IReadOnlyList<SeoMeta>
+@{
+    ViewData["Title"] = "SEO Metas";
+}
+
+<h1>SEO Metas</h1>
+
+@if (TempData["SuccessMessage"] is string ok)
+{
+    <div role="alert" style="color:green;">@ok</div>
+}
+@if (TempData["ErrorMessage"] is string err)
+{
+    <div role="alert" style="color:red;">@err</div>
+}
+
+<p><a asp-action="Edit">+ Yeni SEO Meta</a></p>
+
+@if (Model.Count == 0)
+{
+    <p><em>Henuz SEO meta yok. ResolveAsync default'lari Settings'ten okuyor.</em></p>
+}
+else
+{
+    <table>
+        <thead>
+            <tr>
+                <th>Target Type</th>
+                <th>Target Id</th>
+                <th>Title</th>
+                <th>Description</th>
+                <th>Guncelleme</th>
+                <th>Islem</th>
+            </tr>
+        </thead>
+        <tbody>
+        @foreach (var m in Model)
+        {
+            <tr>
+                <td>@m.TargetType</td>
+                <td>@m.TargetId</td>
+                <td>@(m.Title ?? "—")</td>
+                <td>@(m.Description?.Length > 60 ? m.Description.Substring(0, 60) + "…" : m.Description ?? "—")</td>
+                <td>@m.UpdatedAt.ToString("yyyy-MM-dd HH:mm")</td>
+                <td>
+                    <a asp-action="Details" asp-route-targetType="@m.TargetType" asp-route-targetId="@m.TargetId">Detay</a>
+                    <span> | </span>
+                    <a asp-action="Edit" asp-route-targetType="@m.TargetType" asp-route-targetId="@m.TargetId">Duzenle</a>
+                    <span> | </span>
+                    <form asp-action="Delete" method="post" style="display:inline;">
+                        @Html.AntiForgeryToken()
+                        <input type="hidden" name="targetType" value="@m.TargetType" />
+                        <input type="hidden" name="targetId" value="@m.TargetId" />
+                        <button type="submit" onclick="return confirm('Silinsin mi?');">Sil</button>
+                    </form>
+                </td>
+            </tr>
+        }
+        </tbody>
+    </table>
+}

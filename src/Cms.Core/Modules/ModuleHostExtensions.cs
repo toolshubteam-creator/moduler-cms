@@ -42,6 +42,23 @@ public static class ModuleHostExtensions
         var loaderOptions = new ModuleLoaderOptions();
         builder.Configuration.GetSection(ModuleLoaderOptions.SectionName).Bind(loaderOptions);
 
+        // Modul Contracts DLL'lerini default ALC'ye eagerly yukle. Modul aralarinda
+        // (orn. Cms.Modules.Seo → Cms.Modules.Settings.Contracts kullanimi) tip identity'nin
+        // paylasilmasi icin sart. Aksi halde her modul ALC'si kendi Contracts kopyasini
+        // yukler ve DI graph cross-module dependency'leri cozemez (Faz-4.3 calibration).
+        if (Directory.Exists(loaderOptions.Path))
+        {
+            foreach (var contractsDll in Directory.GetFiles(loaderOptions.Path, "Cms.Modules.*.Contracts.dll"))
+            {
+                try
+                {
+                    System.Runtime.Loader.AssemblyLoadContext.Default.LoadFromAssemblyPath(contractsDll);
+                }
+                catch (BadImageFormatException) { }
+                catch (FileLoadException) { }
+            }
+        }
+
         var loader = new ModuleLoader(Options.Create(loaderOptions), NullLogger<ModuleLoader>.Instance);
         var modules = loader.LoadAll();
 

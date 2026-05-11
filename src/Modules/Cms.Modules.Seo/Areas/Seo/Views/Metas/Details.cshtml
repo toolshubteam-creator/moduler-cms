@@ -1,0 +1,21 @@
+@model SeoMeta
+@{
+    ViewData["Title"] = $"SEO: {Model.TargetType}/{Model.TargetId}";
+}
+
+<h1>SEO Meta — @Model.TargetType / @Model.TargetId</h1>
+
+<dl>
+    <dt>Title</dt><dd>@(Model.Title ?? "—")</dd>
+    <dt>Description</dt><dd>@(Model.Description ?? "—")</dd>
+    <dt>OG Image</dt><dd>@(Model.OgImage ?? "—")</dd>
+    <dt>Canonical</dt><dd>@(Model.Canonical ?? "—")</dd>
+    <dt>Robots</dt><dd>@(Model.Robots ?? "—")</dd>
+    <dt>Updated</dt><dd>@Model.UpdatedAt.ToString("yyyy-MM-dd HH:mm:ss") UTC</dd>
+</dl>
+
+<p>
+    <a asp-action="Edit" asp-route-targetType="@Model.TargetType" asp-route-targetId="@Model.TargetId">Duzenle</a>
+    <span> | </span>
+    <a asp-action="Index">&laquo; Listeye don</a>
+</p>
