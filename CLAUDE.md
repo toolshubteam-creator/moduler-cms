@@ -197,7 +197,7 @@ Bir adım tamamlandı sayılır:
 
 > Bu liste fazlar ilerledikçe güncellenir.
 
-- (henüz modül eklenmedi)
+- settings (v1.0.0, core) — tenant-scoped key-value config store
 
 ## Referans Dokümanlar
 

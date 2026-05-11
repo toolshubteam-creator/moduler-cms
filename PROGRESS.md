@@ -3,7 +3,7 @@
 > Bu dosya **canlı** durum dosyasıdır. Her adım sonunda güncellenir.
 > Sade tutuyoruz; detaylı task listesi her fazın açılışında konuşulup üretilir.
 
-**Son güncelleme:** Faz-3.5 (CRUD pattern dokuman + Faz-3 retrospektif) — DONE · **Faz-3 KAPANDI**
+**Son güncelleme:** Faz-4.1 (Modul infra + Settings modulu) — DONE
 
 ---
 
@@ -15,7 +15,7 @@
 | **Faz-1** | Çekirdek temel (IModule, ModuleLoader, Auth) | 2 hafta | 🟢 DONE |
 | **Faz-2** | Multi-tenancy + RBAC | 2 hafta | 🟢 DONE |
 | **Faz-3** | Generic CRUD + Audit | 2 hafta | 🟢 DONE |
-| **Faz-4** | Media + SEO + Settings (3 çekirdek modül) | 2 hafta | ⚪ TODO |
+| **Faz-4** | Media + SEO + Settings (3 çekirdek modül) | 2 hafta | 🟡 IN-PROGRESS |
 | **Faz-5** | Blog modülü (full, referans modül) | 2 hafta | ⚪ TODO |
 | **Faz-6** | Event Bus + Notification | 2 hafta | ⚪ TODO |
 | **Faz-7** | Form Builder + Page Builder | 2 hafta | ⚪ TODO |
@@ -25,7 +25,22 @@
 
 ---
 
-## Aktif Faz: Faz-3 — Generic CRUD + Audit ✓ KAPANDI
+## Aktif Faz: Faz-4 — Media + SEO + Settings çekirdek modülleri
+
+**Hedef:** Modul yazimi infrastructure'unu (DLL copy, RegisterServices integration) konsolide et + uc cekirdek modul (Settings, Media, SEO) ile dort yapi tasi tamamla.
+
+### Faz-4 Adımları
+
+| Adım | Başlık | Durum |
+|---|---|---|
+| 4.1 | Modul infra + Settings modulu | 🟢 DONE |
+| 4.2 | Media modulu | ⚪ TODO |
+| 4.3 | SEO modulu | ⚪ TODO |
+| 4.4 | Retrospektif + dokumantasyon | ⚪ TODO |
+
+---
+
+## Faz-3 — Generic CRUD + Audit ✓ KAPANDI
 
 **Hedef:** Modul yazimi icin generic CRUD scaffold + audit log (kim, ne zaman, neyi degistirdi). Faz-2'de hazirlanan tenant + RBAC altyapisi uzerine kurulacak. Faz-3 detayi 3.1 baslangicinda konusulacak.
 
@@ -62,6 +77,7 @@
 
 ## Yapılanlar (kronolojik, en yeni üstte)
 
+- **Faz-4.1** (commit: `e033c08`): D-014 KAPATILDI — `UseCmsModules(WebApplicationBuilder)` extension build-oncesi modul DLL'lerini Modules/ klasorunden discover edip her IModule instance'i icin `RegisterServices(services, configuration)` cagirir, modul assembly'lerini IMvcBuilder.AddApplicationPart ile MVC controller/view discovery'ye ekler, ModuleDescriptorRegistry'yi pre-populate eder. `src/Modules/Directory.Build.targets` glob pattern ile (`$(TargetDir)*.dll` + `$(TargetDir)*.deps.json`) modul ciktilarini Cms.Web/bin/<Config>/<Tfm>/Modules/ altina kopyalar — AssemblyDependencyResolver Contracts ve transitive deps'i bulur. **Cms.Modules.Settings.Contracts** (saf interface): ISettingsService (GetAsync<T>/SetAsync<T>/GetRawAsync/GetAllAsync/DeleteAsync), SettingEntry record, SettingValueType enum (String/Int/Bool/Decimal/Json). **Cms.Modules.Settings** (Microsoft.NET.Sdk.Razor, view'lar DLL'e gomulu): SettingsModule (IsCorePlugin, settings module id, IHasEntities + IHasPermissions), SettingEntryEntity (IAuditable, Settings_Entries tablosu Key UNIQUE Value text), SettingsService (tip-spesifik Serialize/Convert + InvalidCastException), Areas/Settings/Controllers/SettingsController ([Authorize][HasPermission("settings.view")] Index + Edit + Delete), Razor Index.cshtml. ModuleLoadContext refactor: Default.LoadFromAssemblyName ile shared assembly probing — NuGet.Versioning identity ayrismasi (MissingMethodException set_Version) cozuldu. TenantDbContextDesignFactory AppContext.BaseDirectory/Modules tarayisi — `dotnet ef` migration scaffold'una modul entity'leri dahil. 10 yeni test (SettingsServiceTests integration): Create/Update/Delete + audit row assertion + tip donusum + JSON deserialize + InvalidCastException; toplam 134 test yesil. **FIX-01:** Tek `Copy($(TargetPath))` Contracts'i atliyordu — glob pattern'a gecildi. **FIX-02:** ModuleLoadContext Default.Assemblies kontrolu lazy paketleri kaciriyordu (NuGet.Versioning identity bug) — proaktif Default.LoadFromAssemblyName ile cozuldu. **FIX-03:** appsettings.json `Modules:Path = "Modules"` relative path source dir'i isaret ediyordu — silindi, default `AppContext.BaseDirectory/Modules` devreye girdi. **FIX-04:** Areas route 2+ segment ister; modul URL'leri `/Area/Controller` konvansiyonu (orn. `/Settings/Settings`).
 - **Faz-3.5** (tag: `v0.3.0`): Faz-3 kapanis — `docs/MODULE_CRUD_PATTERN.md` (modul yazari perspektifinden Faz-3 altyapisi kullanim kilavuzu: entity marker'lari, migration, controller, permission konvansiyonu, dokunma listesi, restore davranisi) + `docs/FAZ-3-RETROSPECTIVE.md` (hedef vs gerceklesen, 5 alt-adim ozeti, tasarim kararlari geri bakis, beklenmedik bulgular [model cache, route collision, EF auto-create, FindAsync, sealed PermissionService, async post-eviction], ertelemeler [D-017/D-018/D-012 kapandi, D-019 dogdu, D-002 Faz-6'ya kaydi], Faz-4 devir notlari, olculer). README.md durum: Faz-0 -> Faz-3 tamamlandi. v0.3.0 annotated tag.
 - **Faz-3.4** (commit: `e5af2e2`): D-012 KAPATILDI — IPermissionCacheInvalidator + MemoryPermissionCacheInvalidator (singleton, shadow index ConcurrentDictionary<string, byte> wildcard remove icin, KeyPrefix "cms:perm:", IServiceScopeFactory ile InvalidateRoleAsync scoped MasterDbContext.Sys_UserRoles join). CachedPermissionService (IPermissionService decorator, FrozenSet<string> 5dk sliding TTL, RegisterPostEvictionCallback shadow index temizleme, Debug log HIT/MISS). AddCmsAuthorization DI chain: AddMemoryCache + MemoryPermissionCacheInvalidator singleton + IPermissionCacheInvalidator facade + PermissionService concrete scoped + IPermissionService factory delegate (recursive resolve bypass). PermissionSeeder constructor 4. parametre IPermissionCacheInvalidator; ReconcileAsync sonu InvalidateAll. 8 yeni test (5 CachedPermissionService + 2 MemoryPermissionCacheInvalidator + 1 PermissionSeederTests). Toplam 124 test yesil. **FIX-01:** PermissionService sealed -> test'te inherit edilemedi (CountingPermissionService basarisiz); CachedPermissionService ctor PermissionService -> IPermissionService gevsetildi, DI factory delegate ile recursive resolve bypass. **FIX-02:** MemoryCache post-eviction callback async (Task.Factory.StartNew) — test sync flaky; polling loop (Task.Delay 20ms, 2s deadline) ile cozuldu, prod'da gorunmez. **FIX-03:** Serilog ReadFrom.Configuration "Logging" section'i okumuyor — manuel log dogrulama icin Serilog:MinimumLevel:Override ile namespace Debug'a ayarlandi, dogrulama sonrasi geri cekildi. **NOT:** Mevcut admin route'lar (Tenants/Audit/SoftDelete) SystemRole policy kullaniyor, [HasPermission] attribute hicbir route'a bagli degil — IPermissionService.HasPermissionAsync runtime'da cagrilmiyor, CachedPermissionService production'da dormant. Faz-5'te Blog modulu [HasPermission] kullanmaya basladiginda canli HIT/MISS log'lari gorulecek; infrastructure katmani 5 test (call count assertion) + startup InvalidateAll log'u ile yapisal olarak dogrulandi.
 - **Faz-3.3** (commit: `4890e18`): D-018 KAPATILDI — TenantMigrationRunner (Cms.Core/Data, sequential MigrateAsync tum aktif tenant'lar, try/catch tek fail digerlerini durdurmaz, TenantMigrationReport(Successful/Failed/Total)) + Program.cs app start auto-migrate (IsDevelopment only, LoadCmsModulesAsync + PermissionSeeder sonrasi) + TenantsController.MigrateAll POST action (antiforgery, TempData success/error) + Tenants/Index.cshtml "Tum Tenant'lari Migrate Et" butonu (confirm dialog). AuditAction.Restore detection Faz-3.1'de zaten dogru yazilmis (ISoftDeletable IsDeleted true->false transition Classify metodunda yakalaniyor) — kod degisikligi gerekmedi, AuditRestoreDetectionTests ile dogrulandi (Create -> Delete -> Restore action sirali yazildi). ModuleDescriptorRegistry.GetSoftDeletableEntityTypes (ConcurrentDictionary<Type, byte> backing, snapshot getter, internal RegisterSoftDeletableTypes); populate TenantDbContextFactory.Create cross-cut'a tasindi (her Create'te ctx.Model uzerinden ISoftDeletable tipleri idempotent registry'e eklenir — OnModelCreating EF Core model cache nedeniyle bir kez calisip atlamasini bypass eder). Areas/Admin/SoftDeleteController (Authorize SystemRole; Index tenantId+entityName+page; Restore POST antiforgery; generic helpers QueryDeletedTypedAsync<T>+RestoreTypedAsync<T> with Expression.Lambda PK predicate + IgnoreQueryFilters; PK convert Guid/int/long+ChangeType fallback). SoftDeleteIndexViewModel + DeletedEntityRow record + Index.cshtml (tenant+entity dropdowns, deleted row table, per-row restore form, pagination, empty-state). CorePermissions.SoftDeleteManage (core.softdelete.manage) eklendi, PermissionSeeder otomatik seed. _AdminLayout 3 link (Tenant'lar | Audit Log | Silinmis Kayitlar). 8 yeni test (2 migration + 1 restore detection + 3 controller + 2 registry); toplam 116 test yesil. **FIX-01:** EF Core MigrateAsync non-existent DB'yi otomatik yaratti (IRelationalDatabaseCreator.CreateAsync) — fail test icin bad credentials kullanildi. **FIX-02:** SqlQueryRaw<int> SELECT COUNT(*) subquery wrap'i bozdu (AS s LIMIT 1 syntax err); direct DbConnection.ExecuteScalarAsync. **FIX-03:** ConcurrentDictionary.Keys ICollection<T> donduruyor, IReadOnlyCollection<T> gerekiyordu — [.. _softDeletableTypes.Keys] snapshot. **FIX-04:** OnModelCreating populate test class'lari arasi flaky (model cache hit -> registry bos) — populate TenantDbContextFactory.Create cross-cut'a tasindi. **FIX-05:** ctx.FindAsync soft-deleted entity'yi bulamadi (EF 9 query filter respect belirsiz) — Expression PK predicate + IgnoreQueryFilters generic helper. **NOT:** Manuel UI'da acme tenant'in Faz-2.4 oncesi bozuk conn string'i fail oldu (TenantMigrationReport 2/3 ok, 1 failed); D-018 tasariminin tam istedigi davranis (digerlerini durdurmadi). Fail nedeni admin UI'da gorunmuyor (sadece log'da) — D-019 olarak Faz-7'ye kaydedildi.
@@ -82,14 +98,14 @@
 
 ## Sıradaki
 
-- **Faz-4.1:** Media + SEO + Settings cekirdek modulleri — plan tartismasi yeni konusmada baslayacak. Faz-4 detayli alt-adimlari 4.1 acilisinda konusulup uretilecek.
+- **Faz-4.2:** Media modulu (full) — upload, listele, sil; tenant-scoped storage path.
 
 ---
 
 ## Sürüm ve Etiketler
 
 > Her faz tamamlandığında git tag'i atılır: `v0.1.0` (Faz-1 sonu), `v0.2.0` (Faz-2 sonu)…
-> **v0.1.0** atildi (Faz-1 sonu). **v0.2.0** atildi (Faz-2 sonu). **v0.3.0** atildi (Faz-3 sonu). Sonraki: v0.4.0 (Faz-4 sonu).
+> **v0.1.0** atildi (Faz-1 sonu). **v0.2.0** atildi (Faz-2 sonu). **v0.3.0** atildi (Faz-3 sonu). Faz-4 baslangici (4.1 done) — Sonraki: v0.4.0 (Faz-4 sonu, 3 cekirdek modul tamamlandiginda).
 
 ---
 

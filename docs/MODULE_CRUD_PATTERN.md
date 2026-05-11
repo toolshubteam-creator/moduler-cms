@@ -117,7 +117,7 @@ dotnet ef migrations add Blog_AddPosts `
 
 Migration uygulamasi: yeni tenant `TenantProvisioningService.CreateAsync` ile yaratildiginda otomatik `MigrateAsync`. Mevcut tenant'lara migration apply icin app start auto-migrate (IsDevelopment) veya admin "Tum Tenant'lari Migrate Et" butonu (`/Admin/Tenants`).
 
-**TBD (Faz-5'te netlesecek):** Modul'un kendi migration klasorunu mu kullanmali, yoksa core tenant migration klasoru mu? Su an tek klasor; modul sayisi artarsa migration adlandirma karmasasi tartisilacak.
+**Karar (Faz-4.1):** Modul migration'lari ortak `Cms.Core/Data/Migrations/Tenant/` klasorunde durur. Adlandirma konvansiyonu: `Yyyymmddhhmm_ModuleId_Description` (orn. `20260512_Settings_AddEntries`). Tek `__EFMigrationsHistory` tablosu; tum modul migration'lari sequential timestamp ile uygulanir. Modul kaldirma temizligi (rollback migration) Faz-8 (D-006 hot-reload) ile birlikte cozulecek.
 
 ## 4. Controller Yazimi
 
@@ -148,6 +148,8 @@ public class PostsController(TenantDbContextProvider ctxProvider) : Controller
 ```
 
 **Onemli:** ITenantContext zaten resolve edilmis olmali (TenantResolutionMiddleware modul route'larinda calisir). `/Account` ve `/admin` path'leri tenant-bypass — modul controller'lari tenant subdomain'inde calisir.
+
+**Route konvansiyonu (Faz-4.1):** Default areas route pattern `{area:exists}/{controller=Home}/{action=Index}/{id?}` en az 2 path segment ister. Tek-segment URL (orn. `/Settings`) area route'una uymaz cunku constraint 2+ segment bekler. Modul kendini `/{Area}/{Controller}` ile expose eder — Settings modulu icin `/Settings/Settings`, Blog modulu icin `/Blog/Posts` gibi. `/Admin/Audit` ve `/Admin/Tenants` (Faz-3.2) ile simetrik. Tek-segment "kisa URL" istenirse modul `MapEndpoints` (IHasEndpoints) ile explicit endpoint kaydedebilir.
 
 **TBD (Faz-5'te netlesecek):** Modul controller'lari icin tenant resolution disinda calistirma senaryosu (orn. background job icin) — TenantDbContextProvider tenant olmadan exception atar. Hangfire job pattern Faz-6'da tartisilacak.
 
@@ -184,6 +186,7 @@ Asagidakileri YAPMA — cekirdek davranisi bozar:
 - ❌ TenantDbContext'i constructor ile inject etme — TenantDbContextProvider kullan (per-request lazy)
 - ❌ `ctx.FindAsync(...)` ile soft-deleted entity arama — EF Core 9 davranisi belirsiz, `IgnoreQueryFilters().FirstOrDefaultAsync` kullan
 - ❌ MVC parametre adlari icin `action` / `controller` / `area` — route token collision (Faz-3.2 FIX). `auditAction` + `[FromQuery(Name="act")]` gibi rename
+- ❌ Modul DLL'i tek `Copy($(TargetPath))` ile kopyalama — `.deps.json` ve transitif `.dll`'ler eksik kalir, AssemblyDependencyResolver runtime'da fail eder (Faz-4.1 FIX). `src/Modules/Directory.Build.targets` glob pattern (`$(TargetDir)*.dll`, `$(TargetDir)*.deps.json`) kullanir; modul yazarinin csproj'a Copy target eklemesine gerek yok (Directory.Build.targets her `src/Modules/*` projeye otomatik uygulanir).
 
 ## 7. Audit Restore Davranisi
 

@@ -4,7 +4,7 @@
 > Geçmiş kayıt değil — gelecek-bakışlı.
 > Her adım başında okunur, sonunda güncellenir.
 
-**Son güncelleme:** Faz-3.5 — Faz-3 kapandi, erteleme tablosunda degisiklik yok.
+**Son güncelleme:** Faz-4.1 — D-014 kapatildi (PROGRESS Faz-4.1'e tasindi). Yeni erteleme yok.
 
 ---
 
@@ -34,11 +34,6 @@ ID formatı: `D-001`, `D-002`... (sıralı, silinince ID tekrar kullanılmaz)
 **Bağlam:** ModuleManifest code-first record olarak duruyor, modul DLL'i yuklenmeden manifest okunamiyor. 10+ modul kullanan projeler icin ileride DLL yuklemeden once metadata okumayi (module.json) dusunebiliriz. Bugun erken optimizasyon.
 **Tetik:** v2 (Faz-8 sonrasi backlog)
 **Eklenme:** Faz-1.2
-
-### D-014 — Modul IModule.RegisterServices DI integration
-**Bağlam:** Faz-2.4a refactor'unda `BuildServiceProvider()` anti-pattern'i kaldirilirken `module.Instance.RegisterServices(services, configuration)` cagrisi da no-op kaldi (composition root build sonrasi modul yuklendigi icin DI'ye yeni servis ekleme penceresi kapaniyor). Modul yazimi Faz-5 (Blog modulu) ile basladiginda module'ler kendi servislerini DI'ye ekleyebilmeli. Cozum yollari: (a) `WebApplicationBuilder.UseCmsModules()` build oncesi modul DLL'lerini kesfedip RegisterServices'i normal DI registration phase'inde cagiran extension; (b) tenant-scoped servis kayit pattern'i (per-request service collection); (c) source generator + reflection ile compile-time module manifest.
-**Tetik:** Faz-5 (Blog modulu — ilk gercek RegisterServices kullanimi)
-**Eklenme:** Faz-2.4a
 
 ### D-015 — xUnit test parallelization
 **Bağlam:** `[Collection(MySqlCollection.Name)]` pattern test class'larini sequential calistiriyor. DB-bagimli test sayisi arttikca calisma suresi lineer buyumeyor (Faz-2.3: 26 test → 9dk). Cozum: `MySqlContainerFixture`'i Collection yerine her test class icin `IClassFixture<>` ile ayri-ayri kullanmak (her class kendi container'ini ayaga kaldirir, paralel calisir) veya CollectionFixture'i statik singleton'a indirmek (DB'ler izole, container paylasimli, AMA xUnit class-paralel destekler hale getirmek). Risk: Docker Desktop'in es zamanli birden cok MySQL container'ini kararli yonetmemesi.
@@ -100,14 +95,14 @@ ID formatı: `D-001`, `D-002`... (sıralı, silinince ID tekrar kullanılmaz)
 | Faz-2 | 0 |
 | Faz-3 | 1 (D-002 alternatif Faz-6) |
 | Faz-4 | 0 |
-| Faz-5 | 1 (D-014) |
+| Faz-5 | 0 |
 | Faz-6 | 0 |
 | Faz-7 | 8 (D-007, D-008, D-009, D-010, D-011, D-013, D-016, D-019) |
 | Faz-8 | 1 (D-006) |
 | v2 | 1 (D-004) |
 | Tetik: test suresi 15dk | 1 (D-015) |
 
-**Toplam aktif:** 13
+**Toplam aktif:** 12
 
 ---
 
@@ -123,6 +118,10 @@ ID formatı: `D-001`, `D-002`... (sıralı, silinince ID tekrar kullanılmaz)
 ### D-005 — AddCmsModules icindeki BuildServiceProvider() anti-pattern
 **Kapatildi:** Faz-2.4a
 **Cozum:** `AddCmsModules` ikiye bolundu — `AddCmsModuleSystem` (DI kayitlari, build oncesi, servisleri ve `ModuleDescriptorRegistry` singleton'i ekler) + `LoadCmsModulesAsync` (build sonrasi `IHost` extension, modulleri yukleyip registry'ye yazar). `BuildServiceProvider()` cagrisi tamamen kaldirildi. `ModuleDescriptorRegistry` mutable holder pattern'i sayesinde DI'ye `IReadOnlyList<ModuleDescriptor>` sorgu zamani uretilebilir hale geldi (PermissionSeeder, TenantDbContextFactory, TenantDbContext bu list'i lazy resolve eder). Trade-off: `IModule.RegisterServices` cagrisi simdilik no-op — yeni D-014 olarak takipte.
+
+### D-014 — Modul IModule.RegisterServices DI integration
+**Kapatildi:** Faz-4.1
+**Cozum:** `UseCmsModules(this WebApplicationBuilder builder)` extension'i build oncesi modul DLL'lerini discover edip her IModule instance'i icin `RegisterServices(services, configuration)` cagiriyor (`src/Cms.Core/Modules/ModuleHostExtensions.cs`). D-005 sonrasi no-op kalan cagri artik aktif. Settings modulu icin `ISettingsService` DI'ye scoped olarak kayit ediliyor; SettingsController constructor injection ile aliyor — manuel UI POST `/Settings/Settings/Edit` 302 + audit row `EntityName=SettingEntryEntity, Action=Create` ile kanitlandi.
 
 ---
 
