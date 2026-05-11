@@ -27,6 +27,13 @@ public sealed class PostFormModel
 
     public int? FeaturedMediaId { get; set; }
 
+    /// <summary>Multi-select &lt;select multiple&gt;'dan gelir; bos olabilir.</summary>
+    public List<int> CategoryIds { get; set; } = [];
+
+    /// <summary>Comma-separated free-text tag input. Bos olabilir.</summary>
+    [StringLength(1000)]
+    public string? TagsInput { get; set; }
+
     // Inline SEO (Faz-4.3 SeoMetaInput alanlariyla birebir hizali — Keywords / CanonicalUrl YOK)
     [StringLength(200)] public string? SeoTitle { get; set; }
     [StringLength(500)] public string? SeoDescription { get; set; }

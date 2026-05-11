@@ -15,7 +15,8 @@ using Microsoft.AspNetCore.Mvc;
 public sealed class PostsController(
     IPostService posts,
     IMediaService mediaService,
-    ISeoMetaService seoService) : Controller
+    ISeoMetaService seoService,
+    ICategoryService categoryService) : Controller
 {
     private const string SeoTargetType = "blog.post";
 
@@ -33,7 +34,7 @@ public sealed class PostsController(
     [HasPermission("blog.posts.create")]
     public async Task<IActionResult> Create()
     {
-        ViewData["MediaList"] = await mediaService.ListAsync(0, 100, HttpContext.RequestAborted);
+        await PopulateLookupsAsync();
         return View(new PostFormModel());
     }
 
@@ -46,26 +47,39 @@ public sealed class PostsController(
 
         if (!ModelState.IsValid)
         {
-            ViewData["MediaList"] = await mediaService.ListAsync(0, 100, HttpContext.RequestAborted);
+            await PopulateLookupsAsync();
             return View(model);
         }
 
         var authorId = ResolveCurrentUserId();
-        var dto = await posts.CreateAsync(new CreatePostRequest(
-            model.Title,
-            model.Slug,
-            model.Excerpt,
-            model.Content,
-            model.Status,
-            model.PublishAt,
-            model.FeaturedMediaId,
-            authorId),
-            HttpContext.RequestAborted);
+        var tagNames = ParseTagsInput(model.TagsInput);
 
-        await SaveSeoIfPresentAsync(dto.Id, model);
+        try
+        {
+            var dto = await posts.CreateAsync(new CreatePostRequest(
+                model.Title,
+                model.Slug,
+                model.Excerpt,
+                model.Content,
+                model.Status,
+                model.PublishAt,
+                model.FeaturedMediaId,
+                authorId,
+                [.. model.CategoryIds],
+                tagNames),
+                HttpContext.RequestAborted);
 
-        TempData["SuccessMessage"] = $"Post '{dto.Title}' olusturuldu (slug={dto.Slug}).";
-        return RedirectToAction(nameof(Index));
+            await SaveSeoIfPresentAsync(dto.Id, model);
+
+            TempData["SuccessMessage"] = $"Post '{dto.Title}' olusturuldu (slug={dto.Slug}).";
+            return RedirectToAction(nameof(Index));
+        }
+        catch (InvalidOperationException ex)
+        {
+            ModelState.AddModelError(string.Empty, ex.Message);
+            await PopulateLookupsAsync();
+            return View(model);
+        }
     }
 
     [HttpGet]
@@ -79,8 +93,8 @@ public sealed class PostsController(
         }
 
         var seo = await seoService.GetAsync(SeoTargetType, id.ToString(CultureInfo.InvariantCulture), HttpContext.RequestAborted);
+        await PopulateLookupsAsync();
 
-        ViewData["MediaList"] = await mediaService.ListAsync(0, 100, HttpContext.RequestAborted);
         return View(new PostFormModel
         {
             Id = dto.Id,
@@ -91,6 +105,8 @@ public sealed class PostsController(
             Status = dto.Status,
             PublishAt = dto.PublishAt,
             FeaturedMediaId = dto.FeaturedMediaId,
+            CategoryIds = [.. dto.CategoryIds],
+            TagsInput = string.Join(", ", dto.TagNames),
             SeoTitle = seo?.Title,
             SeoDescription = seo?.Description,
             SeoOgImage = seo?.OgImage,
@@ -108,33 +124,46 @@ public sealed class PostsController(
 
         if (!ModelState.IsValid)
         {
-            ViewData["MediaList"] = await mediaService.ListAsync(0, 100, HttpContext.RequestAborted);
+            await PopulateLookupsAsync();
             return View(model);
         }
 
-        var dto = await posts.UpdateAsync(new UpdatePostRequest(
-            model.Id,
-            model.Title,
-            string.IsNullOrWhiteSpace(model.Slug) ? model.Title : model.Slug,
-            model.Excerpt,
-            model.Content,
-            model.Status,
-            model.PublishAt,
-            model.FeaturedMediaId),
-            HttpContext.RequestAborted);
+        var tagNames = ParseTagsInput(model.TagsInput);
 
-        if (HasSeoInput(model))
+        try
         {
-            await SaveSeoIfPresentAsync(dto.Id, model);
-        }
-        else
-        {
-            // Form'da SEO tum alanlari bos -> kayitli SEO meta varsa sil.
-            await seoService.DeleteAsync(SeoTargetType, dto.Id.ToString(CultureInfo.InvariantCulture), HttpContext.RequestAborted);
-        }
+            var dto = await posts.UpdateAsync(new UpdatePostRequest(
+                model.Id,
+                model.Title,
+                string.IsNullOrWhiteSpace(model.Slug) ? model.Title : model.Slug,
+                model.Excerpt,
+                model.Content,
+                model.Status,
+                model.PublishAt,
+                model.FeaturedMediaId,
+                [.. model.CategoryIds],
+                tagNames),
+                HttpContext.RequestAborted);
 
-        TempData["SuccessMessage"] = $"Post '{dto.Title}' guncellendi.";
-        return RedirectToAction(nameof(Index));
+            if (HasSeoInput(model))
+            {
+                await SaveSeoIfPresentAsync(dto.Id, model);
+            }
+            else
+            {
+                // Form'da SEO tum alanlari bos -> kayitli SEO meta varsa sil.
+                await seoService.DeleteAsync(SeoTargetType, dto.Id.ToString(CultureInfo.InvariantCulture), HttpContext.RequestAborted);
+            }
+
+            TempData["SuccessMessage"] = $"Post '{dto.Title}' guncellendi.";
+            return RedirectToAction(nameof(Index));
+        }
+        catch (InvalidOperationException ex)
+        {
+            ModelState.AddModelError(string.Empty, ex.Message);
+            await PopulateLookupsAsync();
+            return View(model);
+        }
     }
 
     [HttpPost]
@@ -169,6 +198,12 @@ public sealed class PostsController(
         return RedirectToAction(nameof(Index));
     }
 
+    private async Task PopulateLookupsAsync()
+    {
+        ViewData["MediaList"] = await mediaService.ListAsync(0, 100, HttpContext.RequestAborted);
+        ViewData["CategoryTree"] = await categoryService.ListWithIndentAsync(HttpContext.RequestAborted);
+    }
+
     private async Task SaveSeoIfPresentAsync(int postId, PostFormModel model)
     {
         if (!HasSeoInput(model))
@@ -193,6 +228,15 @@ public sealed class PostsController(
         !string.IsNullOrWhiteSpace(m.SeoOgImage) ||
         !string.IsNullOrWhiteSpace(m.SeoCanonical) ||
         !string.IsNullOrWhiteSpace(m.SeoRobots);
+
+    private static IReadOnlyList<string> ParseTagsInput(string? raw)
+    {
+        if (string.IsNullOrWhiteSpace(raw))
+        {
+            return [];
+        }
+        return [.. raw.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)];
+    }
 
     private int ResolveCurrentUserId()
     {

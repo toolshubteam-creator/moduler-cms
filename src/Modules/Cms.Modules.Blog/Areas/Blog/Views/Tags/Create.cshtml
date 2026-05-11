@@ -1,0 +1,24 @@
+@model TagFormModel
+@{
+    ViewData["Title"] = "Yeni Etiket";
+}
+
+<h1>Yeni Etiket</h1>
+
+<form asp-action="Create" method="post">
+    @Html.AntiForgeryToken()
+    <div asp-validation-summary="All" style="color:red;"></div>
+
+    <fieldset>
+        <legend>Etiket</legend>
+        <label>Name:
+            <input type="text" name="Name" value="@Model.Name" maxlength="100" required />
+        </label>
+        <label>Slug (bos birakirsan Name'den uretilir):
+            <input type="text" name="Slug" value="@Model.Slug" maxlength="100" />
+        </label>
+    </fieldset>
+
+    <button type="submit">Olustur</button>
+    <a asp-action="Index">Iptal</a>
+</form>

@@ -52,7 +52,7 @@ public class PostServiceTests(MySqlContainerFixture fixture) : IAsyncLifetime
 
     public Task DisposeAsync() => fixture.DropDatabaseAsync(_connStr);
 
-    private PostService CreateService(TenantDbContext ctx) => new(ctx, _media);
+    private PostService CreateService(TenantDbContext ctx) => new(ctx, _media, new TagService(ctx));
 
     private static CreatePostRequest NewRequest(
         string title = "Sample Post",
@@ -62,8 +62,11 @@ public class PostServiceTests(MySqlContainerFixture fixture) : IAsyncLifetime
         int authorId = 7,
         string content = "Content body",
         string? excerpt = null,
-        DateTime? publishAt = null) =>
-        new(title, slug, excerpt, content, status, publishAt, featuredMediaId, authorId);
+        DateTime? publishAt = null,
+        IReadOnlyList<int>? categoryIds = null,
+        IReadOnlyList<string>? tagNames = null) =>
+        new(title, slug, excerpt, content, status, publishAt, featuredMediaId, authorId,
+            categoryIds ?? [], tagNames ?? []);
 
     [Fact]
     public async Task CreateAsync_AutoGeneratesSlugFromTitle_TurkishCharsNormalized()
@@ -199,7 +202,7 @@ public class PostServiceTests(MySqlContainerFixture fixture) : IAsyncLifetime
         await using (var ctx = _factory.Create(_connStr))
         {
             var updated = await CreateService(ctx).UpdateAsync(new UpdatePostRequest(
-                b.Id, "Beta Updated", "alpha", null, "x", PostStatus.Draft, null, null));
+                b.Id, "Beta Updated", "alpha", null, "x", PostStatus.Draft, null, null, [], []));
             updated.Slug.Should().Be("alpha-2");
         }
     }
@@ -332,6 +335,112 @@ public class PostServiceTests(MySqlContainerFixture fixture) : IAsyncLifetime
         list.Should().HaveCount(2);
         list[0].Id.Should().Be(thirdId);
         list[1].Id.Should().Be(firstId);
+    }
+
+    [Fact]
+    public async Task CreateAsync_WithCategoryIds_LinksJunction()
+    {
+        int catA, catB;
+        await using (var ctx = _factory.Create(_connStr))
+        {
+            var ts = new TagService(ctx);
+            var cs = new CategoryService(ctx);
+            catA = (await cs.CreateAsync(new CreateCategoryRequest("Spor", null, null, null))).Id;
+            catB = (await cs.CreateAsync(new CreateCategoryRequest("Futbol", null, null, catA))).Id;
+        }
+
+        PostDto dto;
+        await using (var ctx = _factory.Create(_connStr))
+        {
+            dto = await CreateService(ctx).CreateAsync(NewRequest(categoryIds: new[] { catA, catB }));
+        }
+
+        dto.CategoryIds.Should().BeEquivalentTo(new[] { catA, catB });
+
+        await using var verify = _factory.Create(_connStr);
+        var links = await verify.Set<Cms.Modules.Blog.Domain.BlogPostCategory>()
+            .Where(pc => pc.PostId == dto.Id).ToListAsync();
+        links.Should().HaveCount(2);
+    }
+
+    [Fact]
+    public async Task CreateAsync_WithTagNames_AutoCreatesTagsAndJunction()
+    {
+        PostDto dto;
+        await using (var ctx = _factory.Create(_connStr))
+        {
+            dto = await CreateService(ctx).CreateAsync(NewRequest(tagNames: new[] { "dotnet", "MySQL", "Şahane" }));
+        }
+
+        dto.TagNames.Should().HaveCount(3);
+
+        await using var verify = _factory.Create(_connStr);
+        var tags = await verify.Set<Cms.Modules.Blog.Domain.BlogTag>().ToListAsync();
+        tags.Should().HaveCount(3);
+        tags.Select(t => t.Slug).Should().Contain(new[] { "dotnet", "mysql", "sahane" });
+    }
+
+    [Fact]
+    public async Task CreateAsync_WithExistingTags_ReusesThemBySlug()
+    {
+        await using (var ctx = _factory.Create(_connStr))
+        {
+            await new TagService(ctx).CreateAsync(new CreateTagRequest("dotnet", null));
+        }
+
+        await using (var ctx = _factory.Create(_connStr))
+        {
+            await CreateService(ctx).CreateAsync(NewRequest(tagNames: new[] { "dotnet", "csharp" }));
+        }
+
+        await using var verify = _factory.Create(_connStr);
+        var totalTags = await verify.Set<Cms.Modules.Blog.Domain.BlogTag>().CountAsync();
+        totalTags.Should().Be(2, "dotnet zaten vardi, sadece csharp yarat");
+    }
+
+    [Fact]
+    public async Task UpdateAsync_RemovesUnlistedCategoriesAndTags()
+    {
+        int catA, catB;
+        await using (var ctx = _factory.Create(_connStr))
+        {
+            var cs = new CategoryService(ctx);
+            catA = (await cs.CreateAsync(new CreateCategoryRequest("CatA", null, null, null))).Id;
+            catB = (await cs.CreateAsync(new CreateCategoryRequest("CatB", null, null, null))).Id;
+        }
+
+        PostDto created;
+        await using (var ctx = _factory.Create(_connStr))
+        {
+            created = await CreateService(ctx).CreateAsync(NewRequest(
+                title: "T",
+                categoryIds: new[] { catA, catB },
+                tagNames: new[] { "x", "y", "z" }));
+        }
+
+        await using (var ctx = _factory.Create(_connStr))
+        {
+            await CreateService(ctx).UpdateAsync(new UpdatePostRequest(
+                created.Id, "T", created.Slug, null, "body", PostStatus.Draft, null, null,
+                new[] { catA }, new[] { "x" }));
+        }
+
+        await using var verify = _factory.Create(_connStr);
+        var cats = await verify.Set<Cms.Modules.Blog.Domain.BlogPostCategory>()
+            .Where(pc => pc.PostId == created.Id).Select(pc => pc.CategoryId).ToListAsync();
+        var tagLinks = await verify.Set<Cms.Modules.Blog.Domain.BlogPostTag>()
+            .Where(pt => pt.PostId == created.Id).CountAsync();
+
+        cats.Should().BeEquivalentTo(new[] { catA });
+        tagLinks.Should().Be(1);
+    }
+
+    [Fact]
+    public async Task CreateAsync_InvalidCategoryId_Throws()
+    {
+        await using var ctx = _factory.Create(_connStr);
+        var act = async () => await CreateService(ctx).CreateAsync(NewRequest(categoryIds: new[] { 9999 }));
+        await act.Should().ThrowAsync<InvalidOperationException>().WithMessage("*9999*");
     }
 
     [Fact]

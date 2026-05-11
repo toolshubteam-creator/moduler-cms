@@ -8,4 +8,6 @@ public sealed record UpdatePostRequest(
     string Content,
     PostStatus Status,
     DateTime? PublishAt,
-    int? FeaturedMediaId);
+    int? FeaturedMediaId,
+    IReadOnlyList<int> CategoryIds,
+    IReadOnlyList<string> TagNames);

@@ -10,4 +10,6 @@ public sealed record PostDto(
     DateTime? PublishAt,
     DateTime? PublishedAt,
     int? FeaturedMediaId,
-    int AuthorUserId);
+    int AuthorUserId,
+    IReadOnlyList<int> CategoryIds,
+    IReadOnlyList<string> TagNames);

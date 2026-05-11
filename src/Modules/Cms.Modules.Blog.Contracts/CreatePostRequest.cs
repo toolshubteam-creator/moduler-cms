@@ -8,4 +8,6 @@ public sealed record CreatePostRequest(
     PostStatus Status,
     DateTime? PublishAt,
     int? FeaturedMediaId,
-    int AuthorUserId);
+    int AuthorUserId,
+    IReadOnlyList<int> CategoryIds,
+    IReadOnlyList<string> TagNames);

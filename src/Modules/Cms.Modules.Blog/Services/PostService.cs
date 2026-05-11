@@ -6,7 +6,10 @@ using Cms.Modules.Blog.Domain;
 using Cms.Modules.Media.Contracts;
 using Microsoft.EntityFrameworkCore;
 
-public sealed class PostService(TenantDbContext db, IMediaService mediaService) : IPostService
+public sealed class PostService(
+    TenantDbContext db,
+    IMediaService mediaService,
+    ITagService tagService) : IPostService
 {
     public async Task<PostDto> CreateAsync(CreatePostRequest request, CancellationToken cancellationToken = default)
     {
@@ -40,7 +43,15 @@ public sealed class PostService(TenantDbContext db, IMediaService mediaService) 
         };
         db.Set<BlogPost>().Add(post);
         await db.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
-        return ToDto(post);
+
+        await SyncCategoriesAsync(post.Id, request.CategoryIds, cancellationToken).ConfigureAwait(false);
+        await SyncTagsAsync(post.Id, request.TagNames, cancellationToken).ConfigureAwait(false);
+        if (db.ChangeTracker.HasChanges())
+        {
+            await db.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+        }
+
+        return await ToDtoAsync(post, cancellationToken).ConfigureAwait(false);
     }
 
     public async Task<PostDto> UpdateAsync(UpdatePostRequest request, CancellationToken cancellationToken = default)
@@ -72,7 +83,15 @@ public sealed class PostService(TenantDbContext db, IMediaService mediaService) 
             post.PublishedAt = DateTime.UtcNow;
         }
         await db.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
-        return ToDto(post);
+
+        await SyncCategoriesAsync(post.Id, request.CategoryIds, cancellationToken).ConfigureAwait(false);
+        await SyncTagsAsync(post.Id, request.TagNames, cancellationToken).ConfigureAwait(false);
+        if (db.ChangeTracker.HasChanges())
+        {
+            await db.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+        }
+
+        return await ToDtoAsync(post, cancellationToken).ConfigureAwait(false);
     }
 
     public async Task<bool> DeleteAsync(int id, CancellationToken cancellationToken = default)
@@ -110,7 +129,7 @@ public sealed class PostService(TenantDbContext db, IMediaService mediaService) 
         post.Status = PostStatus.Published;
         post.PublishedAt ??= DateTime.UtcNow;
         await db.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
-        return ToDto(post);
+        return await ToDtoAsync(post, cancellationToken).ConfigureAwait(false);
     }
 
     public async Task<PostDto> UnpublishAsync(int id, CancellationToken cancellationToken = default)
@@ -120,20 +139,20 @@ public sealed class PostService(TenantDbContext db, IMediaService mediaService) 
         post.Status = PostStatus.Draft;
         // PublishedAt KORUNUR — yayin gecmisi tarihi.
         await db.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
-        return ToDto(post);
+        return await ToDtoAsync(post, cancellationToken).ConfigureAwait(false);
     }
 
     public async Task<PostDto?> GetAsync(int id, CancellationToken cancellationToken = default)
     {
         var post = await db.Set<BlogPost>().AsNoTracking().FirstOrDefaultAsync(p => p.Id == id, cancellationToken).ConfigureAwait(false);
-        return post is null ? null : ToDto(post);
+        return post is null ? null : await ToDtoAsync(post, cancellationToken).ConfigureAwait(false);
     }
 
     public async Task<PostDto?> GetBySlugAsync(string slug, CancellationToken cancellationToken = default)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(slug);
         var post = await db.Set<BlogPost>().AsNoTracking().FirstOrDefaultAsync(p => p.Slug == slug, cancellationToken).ConfigureAwait(false);
-        return post is null ? null : ToDto(post);
+        return post is null ? null : await ToDtoAsync(post, cancellationToken).ConfigureAwait(false);
     }
 
     public async Task<IReadOnlyList<PostDto>> ListAsync(int skip = 0, int take = 50, CancellationToken cancellationToken = default)
@@ -152,7 +171,43 @@ public sealed class PostService(TenantDbContext db, IMediaService mediaService) 
             .Skip(skip).Take(take)
             .ToListAsync(cancellationToken)
             .ConfigureAwait(false);
-        return [.. posts.Select(ToDto)];
+        if (posts.Count == 0)
+        {
+            return [];
+        }
+
+        var ids = posts.Select(p => p.Id).ToList();
+
+        // Batch fetch ile N+1 once: tum post'lar icin kategori + tag bilgisini tek query'de cek.
+        var catLinks = await db.Set<BlogPostCategory>()
+            .AsNoTracking()
+            .Where(pc => ids.Contains(pc.PostId))
+            .ToListAsync(cancellationToken)
+            .ConfigureAwait(false);
+        var catByPost = catLinks
+            .GroupBy(pc => pc.PostId)
+            .ToDictionary(g => g.Key, g => (IReadOnlyList<int>)[.. g.Select(x => x.CategoryId)]);
+
+        var tagJoin = await (
+            from pt in db.Set<BlogPostTag>().AsNoTracking()
+            join t in db.Set<BlogTag>().AsNoTracking() on pt.TagId equals t.Id
+            where ids.Contains(pt.PostId)
+            select new { pt.PostId, t.Name }).ToListAsync(cancellationToken).ConfigureAwait(false);
+        var tagsByPost = tagJoin
+            .GroupBy(x => x.PostId)
+            .ToDictionary(g => g.Key, g => (IReadOnlyList<string>)[.. g.Select(x => x.Name)]);
+
+        var result = new List<PostDto>(posts.Count);
+        foreach (var p in posts)
+        {
+            var cats = catByPost.TryGetValue(p.Id, out var cs) ? cs : [];
+            var tags = tagsByPost.TryGetValue(p.Id, out var ts) ? ts : [];
+            result.Add(new PostDto(
+                p.Id, p.Title, p.Slug, p.Excerpt, p.Content, p.Status,
+                p.PublishAt, p.PublishedAt, p.FeaturedMediaId, p.AuthorUserId,
+                cats, tags));
+        }
+        return result;
     }
 
     private async Task ValidateMediaAsync(int? mediaId, CancellationToken cancellationToken)
@@ -186,9 +241,96 @@ public sealed class PostService(TenantDbContext db, IMediaService mediaService) 
         return slug;
     }
 
+    private async Task SyncCategoriesAsync(int postId, IReadOnlyList<int> categoryIds, CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(categoryIds);
+
+        var existing = await db.Set<BlogPostCategory>()
+            .Where(pc => pc.PostId == postId)
+            .ToListAsync(cancellationToken)
+            .ConfigureAwait(false);
+
+        var targetIds = categoryIds.Distinct().ToList();
+        if (targetIds.Count > 0)
+        {
+            // Verilen kategori id'leri tenant'ta var mi? (Soft-deleted hari)
+            var validIds = await db.Set<BlogCategory>()
+                .AsNoTracking()
+                .Where(c => targetIds.Contains(c.Id))
+                .Select(c => c.Id)
+                .ToListAsync(cancellationToken)
+                .ConfigureAwait(false);
+            var missing = targetIds.Except(validIds).ToList();
+            if (missing.Count > 0)
+            {
+                throw new InvalidOperationException(
+                    $"Kategori id(ler)i bulunamadi: {string.Join(", ", missing)}.");
+            }
+        }
+
+        var toRemove = existing.Where(e => !targetIds.Contains(e.CategoryId)).ToList();
+        var existingIds = existing.Select(e => e.CategoryId).ToHashSet();
+        var toAdd = targetIds.Where(id => !existingIds.Contains(id)).ToList();
+
+        if (toRemove.Count > 0)
+        {
+            db.Set<BlogPostCategory>().RemoveRange(toRemove);
+        }
+        foreach (var catId in toAdd)
+        {
+            db.Set<BlogPostCategory>().Add(new BlogPostCategory { PostId = postId, CategoryId = catId });
+        }
+    }
+
+    private async Task SyncTagsAsync(int postId, IReadOnlyList<string> tagNames, CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(tagNames);
+
+        var tags = await tagService.GetOrCreateManyAsync(tagNames, cancellationToken).ConfigureAwait(false);
+        var tagIds = tags.Select(t => t.Id).ToList();
+
+        var existing = await db.Set<BlogPostTag>()
+            .Where(pt => pt.PostId == postId)
+            .ToListAsync(cancellationToken)
+            .ConfigureAwait(false);
+
+        var toRemove = existing.Where(e => !tagIds.Contains(e.TagId)).ToList();
+        var existingIds = existing.Select(e => e.TagId).ToHashSet();
+        var toAdd = tagIds.Where(id => !existingIds.Contains(id)).ToList();
+
+        if (toRemove.Count > 0)
+        {
+            db.Set<BlogPostTag>().RemoveRange(toRemove);
+        }
+        foreach (var tagId in toAdd)
+        {
+            db.Set<BlogPostTag>().Add(new BlogPostTag { PostId = postId, TagId = tagId });
+        }
+    }
+
+    private async Task<PostDto> ToDtoAsync(BlogPost p, CancellationToken cancellationToken)
+    {
+        var categoryIds = await db.Set<BlogPostCategory>()
+            .AsNoTracking()
+            .Where(pc => pc.PostId == p.Id)
+            .Select(pc => pc.CategoryId)
+            .ToListAsync(cancellationToken)
+            .ConfigureAwait(false);
+
+        var tagNames = await (
+            from pt in db.Set<BlogPostTag>().AsNoTracking()
+            join t in db.Set<BlogTag>().AsNoTracking() on pt.TagId equals t.Id
+            where pt.PostId == p.Id
+            select t.Name)
+            .ToListAsync(cancellationToken)
+            .ConfigureAwait(false);
+
+        return new PostDto(
+            p.Id, p.Title, p.Slug, p.Excerpt, p.Content, p.Status,
+            p.PublishAt, p.PublishedAt, p.FeaturedMediaId, p.AuthorUserId,
+            categoryIds, tagNames);
+    }
+
     private static string? Normalize(string? value) =>
         string.IsNullOrWhiteSpace(value) ? null : value.Trim();
-
-    private static PostDto ToDto(BlogPost p) =>
-        new(p.Id, p.Title, p.Slug, p.Excerpt, p.Content, p.Status, p.PublishAt, p.PublishedAt, p.FeaturedMediaId, p.AuthorUserId);
 }

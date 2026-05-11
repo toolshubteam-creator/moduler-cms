@@ -1,0 +1,25 @@
+@model TagFormModel
+@{
+    ViewData["Title"] = $"Etiket Duzenle: {Model.Name}";
+}
+
+<h1>Etiket Duzenle — #@Model.Id</h1>
+
+<form asp-action="Edit" method="post">
+    @Html.AntiForgeryToken()
+    <input type="hidden" name="Id" value="@Model.Id" />
+    <div asp-validation-summary="All" style="color:red;"></div>
+
+    <fieldset>
+        <legend>Etiket</legend>
+        <label>Name:
+            <input type="text" name="Name" value="@Model.Name" maxlength="100" required />
+        </label>
+        <label>Slug:
+            <input type="text" name="Slug" value="@Model.Slug" maxlength="100" required />
+        </label>
+    </fieldset>
+
+    <button type="submit">Kaydet</button>
+    <a asp-action="Index">Iptal</a>
+</form>

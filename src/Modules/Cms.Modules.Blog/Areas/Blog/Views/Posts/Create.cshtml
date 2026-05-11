@@ -2,12 +2,14 @@
 @{
     ViewData["Title"] = "Yeni Post";
     var mediaList = (IReadOnlyList<MediaFile>?)ViewData["MediaList"] ?? [];
+    var categoryTree = (IReadOnlyList<CategoryTreeNodeDto>?)ViewData["CategoryTree"] ?? [];
 }
 
 <h1>Yeni Post</h1>
 
 <form asp-action="Create" method="post">
     @Html.AntiForgeryToken()
+    <div asp-validation-summary="All" style="color:red;"></div>
 
     <fieldset>
         <legend>Icerik</legend>
@@ -56,6 +58,29 @@
                     }
                 }
             </select>
+        </label>
+    </fieldset>
+
+    <fieldset>
+        <legend>Kategoriler / Etiketler</legend>
+        <label>Categories (Ctrl/Cmd ile coklu sec):
+            <select name="CategoryIds" multiple size="6">
+                @foreach (var c in categoryTree)
+                {
+                    var prefix = string.Concat(Enumerable.Repeat("— ", c.Depth));
+                    if (Model.CategoryIds.Contains(c.Id))
+                    {
+                        <option value="@c.Id" selected>@prefix@c.Name</option>
+                    }
+                    else
+                    {
+                        <option value="@c.Id">@prefix@c.Name</option>
+                    }
+                }
+            </select>
+        </label>
+        <label>Tags (virgul ile ayrilmis; olmayanlar otomatik yaratilir):
+            <input type="text" name="TagsInput" value="@Model.TagsInput" maxlength="1000" placeholder="orn: dotnet, mysql, mimari" />
         </label>
     </fieldset>
 

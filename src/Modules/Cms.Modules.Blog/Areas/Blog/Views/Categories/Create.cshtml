@@ -1,0 +1,45 @@
+@model CategoryFormModel
+@{
+    ViewData["Title"] = "Yeni Kategori";
+    var parents = (IReadOnlyList<CategoryTreeNodeDto>?)ViewData["ParentOptions"] ?? [];
+}
+
+<h1>Yeni Kategori</h1>
+
+<form asp-action="Create" method="post">
+    @Html.AntiForgeryToken()
+    <div asp-validation-summary="All" style="color:red;"></div>
+
+    <fieldset>
+        <legend>Kategori</legend>
+        <label>Name:
+            <input type="text" name="Name" value="@Model.Name" maxlength="200" required />
+        </label>
+        <label>Slug (bos birakirsan Name'den uretilir):
+            <input type="text" name="Slug" value="@Model.Slug" maxlength="200" />
+        </label>
+        <label>Description:
+            <textarea name="Description" maxlength="1000" rows="3">@Model.Description</textarea>
+        </label>
+        <label>Parent Category:
+            <select name="ParentCategoryId">
+                <option value="">(kok)</option>
+                @foreach (var c in parents)
+                {
+                    var prefix = string.Concat(Enumerable.Repeat("— ", c.Depth));
+                    if (Model.ParentCategoryId == c.Id)
+                    {
+                        <option value="@c.Id" selected>@prefix@c.Name</option>
+                    }
+                    else
+                    {
+                        <option value="@c.Id">@prefix@c.Name</option>
+                    }
+                }
+            </select>
+        </label>
+    </fieldset>
+
+    <button type="submit">Olustur</button>
+    <a asp-action="Index">Iptal</a>
+</form>
