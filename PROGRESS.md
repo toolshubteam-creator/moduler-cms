@@ -3,7 +3,7 @@
 > Bu dosya **canlı** durum dosyasıdır. Her adım sonunda güncellenir.
 > Sade tutuyoruz; detaylı task listesi her fazın açılışında konuşulup üretilir.
 
-**Son güncelleme:** Faz-4.3 (SEO modulu) — DONE
+**Son güncelleme:** Faz-4 KAPANDI (v0.4.0) · Settings + Media + SEO modulleri
 
 ---
 
@@ -15,8 +15,8 @@
 | **Faz-1** | Çekirdek temel (IModule, ModuleLoader, Auth) | 2 hafta | 🟢 DONE |
 | **Faz-2** | Multi-tenancy + RBAC | 2 hafta | 🟢 DONE |
 | **Faz-3** | Generic CRUD + Audit | 2 hafta | 🟢 DONE |
-| **Faz-4** | Media + SEO + Settings (3 çekirdek modül) | 2 hafta | 🟡 IN-PROGRESS |
-| **Faz-5** | Blog modülü (full, referans modül) | 2 hafta | ⚪ TODO |
+| **Faz-4** | Media + SEO + Settings (3 çekirdek modül) | 2 hafta | 🟢 DONE |
+| **Faz-5** | Blog modülü (full, referans modül) | 2 hafta | 🟡 NEXT |
 | **Faz-6** | Event Bus + Notification | 2 hafta | ⚪ TODO |
 | **Faz-7** | Form Builder + Page Builder | 2 hafta | ⚪ TODO |
 | **Faz-8** | Production hardening + ilk müşteri pilot | 2 hafta | ⚪ TODO |
@@ -25,9 +25,17 @@
 
 ---
 
-## Aktif Faz: Faz-4 — Media + SEO + Settings çekirdek modülleri
+## Aktif Faz: Faz-5 — Blog modulu (full, referans modul)
 
-**Hedef:** Modul yazimi infrastructure'unu (DLL copy, RegisterServices integration) konsolide et + uc cekirdek modul (Settings, Media, SEO) ile dort yapi tasi tamamla.
+**Hedef:** Faz-4'te kanitlanan modul pattern uzerinden bir tam dunyada-kullanilir modul: Blog (post, category, tag, comment). Media (featured image) + SEO (per-post meta) + Settings (default URL) entegrasyonu. Detayli alt-adim listesi 5.1 acilisinda WORKING_STYLE pattern'i ile uretilir.
+
+### Faz-5 Adımları
+
+> Henuz tanimli degil. 5.1 acilisinda konusulup uretilir.
+
+---
+
+## Faz-4 — Media + SEO + Settings ✓ KAPANDI
 
 ### Faz-4 Adımları
 
@@ -36,7 +44,7 @@
 | 4.1 | Modul infra + Settings modulu | 🟢 DONE |
 | 4.2 | Media modulu | 🟢 DONE |
 | 4.3 | SEO modulu | 🟢 DONE |
-| 4.4 | Retrospektif + dokumantasyon | ⚪ TODO |
+| 4.4 | Retrospektif + v0.4.0 tag | 🟢 DONE |
 
 ---
 
@@ -77,6 +85,7 @@
 
 ## Yapılanlar (kronolojik, en yeni üstte)
 
+- **Faz-4.4** (tag: `v0.4.0`): Faz-4 kapanis — `docs/FAZ-4-RETROSPECTIVE.md` (4 alt-adim ozet tablosu, 5 tasarim karari geri bakis [vertical slice, Contracts cifti, ortak migration klasoru, Media B dedup, SEO generic target], 5 beklenmedik bulgu [DLL copy eksik, ModuleLoadContext NuGet.Versioning identity, cross-module Contracts identity, areas route 2+ segment, appsettings Modules:Path relative], ertelemeler [D-014 kapandi, dogan yok], Faz-5 devir notlari, olculer +32 test/+25.8%). PROGRESS.md Faz-4 KAPANDI, Faz-5 NEXT. 3 cekirdek modul tamamlandi: settings + media + seo. v0.4.0 annotated tag.
 - **Faz-4.3** (commit: `20b9f0b`): Cms.Modules.Seo.Contracts (saf interface): ISeoMetaService (GetAsync/SetAsync upsert/DeleteAsync/ListAsync/ResolveAsync) + SeoMeta record + SeoMetaInput record + SeoMetaResolved record. Cms.Modules.Seo (Razor SDK): SeoModule (IsCorePlugin, seo id, IHasEntities + IHasPermissions; **cross-module ref** ProjectReference Cms.Modules.Settings.Contracts — CLAUDE.md Kural 5 dogru kullanim), SeoMetaEntity (IAuditable, **ISoftDeletable YOK** — target tek kayit, silinince yeni yazilir + izleri audit log'da), UNIQUE INDEX (TargetType, TargetId), SeoMetaService (TenantDbContext + ISettingsService inject; SetAsync upsert, DeleteAsync hard, **ResolveAsync Settings fallback layered** — `seo.default_*` key'leri ile eksik alan doldurur), Areas/Seo/Controllers/MetasController [Authorize][HasPermission("seo.metas.view")] Index + Details + Edit (yeni/mevcut + readonly TargetType/Id) + Delete POST. SeoMetaTagHelper [HtmlTargetElement("seo-meta", WithoutEndTag)] target-type + target-id attribute, ProcessAsync ResolveAsync ile HTML title/description/og:image/canonical/robots render + **HtmlEncoder XSS-safe** + early return TargetType/Id bos ise. 2 permission: seo.metas.view, seo.metas.edit. Migration `20260511172247_Seo_AddMetas` (Seo_Metas tablosu + IX_Seo_Metas_TargetType_TargetId UNIQUE). 12 yeni test (144 → 156): SeoMetaServiceTests (8 integration — SetAsync new audit Create, SetAsync existing Update Changes JSON, GetAsync null, DeleteAsync hard audit Delete, UNIQUE direct-insert DbUpdateException, ResolveAsync meta missing Settings fallback, ResolveAsync meta partial overlay, ListAsync TargetType ThenBy TargetId) + SeoMetaTagHelperTests (4 unit — full render, all null bos icerik, missing target early return, XSS Title HtmlEncoder escape). Manuel UI dogrulamasi (curl): 3 modul yuklendi (Cms.Modules.Settings + Cms.Modules.Media + Cms.Modules.Seo), POST /Seo/Metas/Edit test.page/home → 302 + liste, POST /Settings/Settings/Edit seo.default_title (ResolveAsync fallback kaynak), GET /Admin/Audit?entityName=SeoMetaEntity 2 kayit, POST /Seo/Metas/Delete → 302 banner silindi. **FIX:** Cross-module Contracts type identity bug — UseCmsModules her modulu ayri ALC'ye yuklerken Cms.Modules.Settings.Contracts hem Seo hem Settings ALC'lerinde ayri kopya yukleniyordu ("Unable to resolve service for type ISettingsService" DI build hata). Cozum: Modules/ klasorunden `Cms.Modules.*.Contracts.dll` glob'unu UseCmsModules build oncesi AssemblyLoadContext.Default.LoadFromAssemblyPath ile eagerly yukle — ModuleLoadContext.Load Default.LoadFromAssemblyName ile arar, bulur, share eder. Faz-4.1 shared paket probing stratejisi Contracts'lar icin genisledi (ModuleHostExtensions.cs +13 satir).
 - **Faz-4.2** (commit: `7592b96`): Cms.Modules.Media.Contracts (saf interface): IFileStorage (hash-based content-addressable, SaveAsync/OpenReadAsync/ExistsAsync/DeleteAsync + FileStorageResult record) + IMediaService (UploadAsync/GetByIdAsync/OpenContentAsync/ListAsync/UpdateMetadataAsync/DeleteAsync + MediaFile record). Cms.Modules.Media (Razor SDK): MediaModule (IsCorePlugin, media id, IHasEntities + IHasPermissions), MediaFileEntity (IAuditable + ISoftDeletable, Media_Files tablosu FileName/StoredPath/MimeType/SizeBytes/Hash varchar 64/AltText/UploadedAt/IsDeleted/DeletedAt + Hash+UploadedAt index), LocalDiskFileStorage (SHA256 hex 64char hash, path `{tenantId}/{yyyy}/{MM}/{hash}{ext}`, File.Exists ile idempotent — yeniden yazma yok, IWebHostEnvironment ContentRootPath cozumu), MediaService (TenantDbContext + IFileStorage + ITenantContext; **B yaklasimi dedup** — DB'de ayni hash icin HER zaman yeni satir, disk'te tek dosya), Areas/Media/Controllers/FilesController [Authorize][HasPermission("media.files.view")] Index/Details/Content (ETag = Hash) + Upload [50MB RequestSizeLimit + multipart antiforgery + media.files.upload] + Edit [altText guncelleme] + Delete [soft-delete, media.files.delete]. Razor views Index (multipart upload form + dosya tablosu + image thumbnail Content/{id} + per-row delete) + Details (metadata listesi + alt text edit + image preview). 3 permission: media.files.view / media.files.upload / media.files.delete. Migration `20260511142413_Media_AddFiles` (Media_Files + IX_Media_Files_Hash non-unique + IX_Media_Files_UploadedAt). `appsettings.json` Media:StoragePath default "App_Data/media" (binary upload'lar `.gitignore` ile repo'dan ayri). 10 yeni test (134 → 144): LocalDiskFileStorageTests (5 — sha256 hesaplama, dedup tek-dosya, tenant izolasyon, round-trip, missing null) + MediaServiceTests (5, Testcontainers — Upload audit Create, ayni icerik 2 DB satir 1 disk dosya, UpdateMetadata audit Update Changes JSON, Delete soft + IsDeleted + audit Delete + query filter, ListAsync UploadedAt DESC + silinen yok). Manuel UI dogrulamasi (curl): hello.txt 34 byte iki kez yuklendi → "Dosyalar (2)" + disk'te tek hash'li dosya + /Admin/SoftDelete'te 1 silinmis kayit + /Admin/Audit'te 3 satir (2 Create + 1 Delete). Faz-4.1 fix dersleri (DLL copy glob, ModuleLoadContext Default ALC shared probing, route /Area/Controller) sorunsuz tasindi.
 - **Faz-4.1** (commit: `e033c08`): D-014 KAPATILDI — `UseCmsModules(WebApplicationBuilder)` extension build-oncesi modul DLL'lerini Modules/ klasorunden discover edip her IModule instance'i icin `RegisterServices(services, configuration)` cagirir, modul assembly'lerini IMvcBuilder.AddApplicationPart ile MVC controller/view discovery'ye ekler, ModuleDescriptorRegistry'yi pre-populate eder. `src/Modules/Directory.Build.targets` glob pattern ile (`$(TargetDir)*.dll` + `$(TargetDir)*.deps.json`) modul ciktilarini Cms.Web/bin/<Config>/<Tfm>/Modules/ altina kopyalar — AssemblyDependencyResolver Contracts ve transitive deps'i bulur. **Cms.Modules.Settings.Contracts** (saf interface): ISettingsService (GetAsync<T>/SetAsync<T>/GetRawAsync/GetAllAsync/DeleteAsync), SettingEntry record, SettingValueType enum (String/Int/Bool/Decimal/Json). **Cms.Modules.Settings** (Microsoft.NET.Sdk.Razor, view'lar DLL'e gomulu): SettingsModule (IsCorePlugin, settings module id, IHasEntities + IHasPermissions), SettingEntryEntity (IAuditable, Settings_Entries tablosu Key UNIQUE Value text), SettingsService (tip-spesifik Serialize/Convert + InvalidCastException), Areas/Settings/Controllers/SettingsController ([Authorize][HasPermission("settings.view")] Index + Edit + Delete), Razor Index.cshtml. ModuleLoadContext refactor: Default.LoadFromAssemblyName ile shared assembly probing — NuGet.Versioning identity ayrismasi (MissingMethodException set_Version) cozuldu. TenantDbContextDesignFactory AppContext.BaseDirectory/Modules tarayisi — `dotnet ef` migration scaffold'una modul entity'leri dahil. 10 yeni test (SettingsServiceTests integration): Create/Update/Delete + audit row assertion + tip donusum + JSON deserialize + InvalidCastException; toplam 134 test yesil. **FIX-01:** Tek `Copy($(TargetPath))` Contracts'i atliyordu — glob pattern'a gecildi. **FIX-02:** ModuleLoadContext Default.Assemblies kontrolu lazy paketleri kaciriyordu (NuGet.Versioning identity bug) — proaktif Default.LoadFromAssemblyName ile cozuldu. **FIX-03:** appsettings.json `Modules:Path = "Modules"` relative path source dir'i isaret ediyordu — silindi, default `AppContext.BaseDirectory/Modules` devreye girdi. **FIX-04:** Areas route 2+ segment ister; modul URL'leri `/Area/Controller` konvansiyonu (orn. `/Settings/Settings`).
@@ -100,14 +109,14 @@
 
 ## Sıradaki
 
-- **Faz-4.4:** Retrospektif + dokumantasyon; faz sonu **v0.4.0** tag.
+- **Faz-5.1:** Blog modulu plan tartismasi — yeni Claude Code oturumu Faz-5 acilisi ile baslar. Detayli alt-adim listesi 5.1 acilisinda uretilir.
 
 ---
 
 ## Sürüm ve Etiketler
 
 > Her faz tamamlandığında git tag'i atılır: `v0.1.0` (Faz-1 sonu), `v0.2.0` (Faz-2 sonu)…
-> **v0.1.0** atildi (Faz-1 sonu). **v0.2.0** atildi (Faz-2 sonu). **v0.3.0** atildi (Faz-3 sonu). Faz-4 baslangici (4.1 done) — Sonraki: v0.4.0 (Faz-4 sonu, 3 cekirdek modul tamamlandiginda).
+> **v0.1.0** atildi (Faz-1 sonu). **v0.2.0** atildi (Faz-2 sonu). **v0.3.0** atildi (Faz-3 sonu). **v0.4.0** atildi (Faz-4 sonu — Media + SEO + Settings modulleri). Sonraki: v0.5.0 (Faz-5 sonu, Blog modulu).
 
 ---
 
