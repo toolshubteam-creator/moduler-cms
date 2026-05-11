@@ -5,6 +5,8 @@
     <Project Path="src/Cms.Web/Cms.Web.csproj" />
   </Folder>
   <Folder Name="/src/Modules/">
+    <Project Path="src/Modules/Cms.Modules.Media.Contracts/Cms.Modules.Media.Contracts.csproj" />
+    <Project Path="src/Modules/Cms.Modules.Media/Cms.Modules.Media.csproj" />
     <Project Path="src/Modules/Cms.Modules.Settings.Contracts/Cms.Modules.Settings.Contracts.csproj" />
     <Project Path="src/Modules/Cms.Modules.Settings/Cms.Modules.Settings.csproj" />
   </Folder>

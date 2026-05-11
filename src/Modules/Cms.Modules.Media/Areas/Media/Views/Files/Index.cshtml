@@ -1,0 +1,94 @@
+@model IReadOnlyList<MediaFile>
+@{
+    ViewData["Title"] = "Media";
+    var skip = (int)(ViewData["Skip"] ?? 0);
+    var take = (int)(ViewData["Take"] ?? 50);
+}
+
+<h1>Media</h1>
+
+@if (TempData["SuccessMessage"] is string ok)
+{
+    <div role="alert" style="color:green;">@ok</div>
+}
+@if (TempData["ErrorMessage"] is string err)
+{
+    <div role="alert" style="color:red;">@err</div>
+}
+
+<h2>Yeni Yukle</h2>
+<form asp-action="Upload" method="post" enctype="multipart/form-data">
+    @Html.AntiForgeryToken()
+    <label>Dosya: <input type="file" name="file" required /></label>
+    <label>Alt Text: <input type="text" name="altText" maxlength="500" /></label>
+    <button type="submit">Yukle</button>
+</form>
+
+<h2>Dosyalar (@Model.Count)</h2>
+@if (Model.Count == 0)
+{
+    <p><em>Henuz dosya yok.</em></p>
+}
+else
+{
+    <table>
+        <thead>
+            <tr>
+                <th>Id</th>
+                <th>Onizle</th>
+                <th>Adi</th>
+                <th>Tip</th>
+                <th>Boyut</th>
+                <th>Hash</th>
+                <th>Yuklenme</th>
+                <th>Islem</th>
+            </tr>
+        </thead>
+        <tbody>
+        @foreach (var f in Model)
+        {
+            <tr>
+                <td>@f.Id</td>
+                <td>
+                    @if (f.MimeType.StartsWith("image/", StringComparison.Ordinal))
+                    {
+                        <img src="@Url.Action("Content", new { id = f.Id })" alt="@f.AltText" style="max-height:48px;max-width:80px;" />
+                    }
+                    else
+                    {
+                        <span>—</span>
+                    }
+                </td>
+                <td><a asp-action="Details" asp-route-id="@f.Id">@f.FileName</a></td>
+                <td>@f.MimeType</td>
+                <td>@f.SizeBytes</td>
+                <td><code>@f.Hash.Substring(0, 12)…</code></td>
+                <td>@f.UploadedAt.ToString("yyyy-MM-dd HH:mm")</td>
+                <td>
+                    <form asp-action="Delete" method="post" style="display:inline;">
+                        @Html.AntiForgeryToken()
+                        <input type="hidden" name="id" value="@f.Id" />
+                        <button type="submit" onclick="return confirm('Silinsin mi?');">Sil</button>
+                    </form>
+                </td>
+            </tr>
+        }
+        </tbody>
+    </table>
+
+    <nav>
+        @if (skip > 0)
+        {
+            <a asp-action="Index"
+               asp-route-skip="@Math.Max(0, skip - take)"
+               asp-route-take="@take">&laquo; Onceki</a>
+        }
+        @if (Model.Count == take)
+        {
+            <span> | </span>
+            <a asp-action="Index"
+               asp-route-skip="@(skip + take)"
+               asp-route-take="@take">Sonraki &raquo;</a>
+        }
+    </nav>
+}

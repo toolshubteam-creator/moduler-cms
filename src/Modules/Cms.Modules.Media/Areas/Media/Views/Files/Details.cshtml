@@ -1,0 +1,40 @@
+@model MediaFile
+@{
+    ViewData["Title"] = $"Media: {Model.FileName}";
+}
+
+<h1>@Model.FileName</h1>
+
+@if (TempData["SuccessMessage"] is string ok)
+{
+    <div role="alert" style="color:green;">@ok</div>
+}
+
+<dl>
+    <dt>Id</dt><dd>@Model.Id</dd>
+    <dt>Mime Type</dt><dd>@Model.MimeType</dd>
+    <dt>Boyut</dt><dd>@Model.SizeBytes bayt</dd>
+    <dt>Hash (SHA256)</dt><dd><code>@Model.Hash</code></dd>
+    <dt>Stored Path</dt><dd><code>@Model.StoredPath</code></dd>
+    <dt>Yuklenme</dt><dd>@Model.UploadedAt.ToString("yyyy-MM-dd HH:mm:ss") UTC</dd>
+    <dt>Alt Text</dt><dd>@(Model.AltText ?? "—")</dd>
+</dl>
+
+@if (Model.MimeType.StartsWith("image/", StringComparison.Ordinal))
+{
+    <p><img src="@Url.Action("Content", new { id = Model.Id })" alt="@Model.AltText" style="max-width:600px;" /></p>
+}
+else
+{
+    <p><a asp-action="Content" asp-route-id="@Model.Id">Indir / Goruntule</a></p>
+}
+
+<h2>Metadata Duzenle</h2>
+<form asp-action="Edit" method="post">
+    @Html.AntiForgeryToken()
+    <input type="hidden" name="id" value="@Model.Id" />
+    <label>Alt Text: <input type="text" name="altText" value="@Model.AltText" maxlength="500" /></label>
+    <button type="submit">Kaydet</button>
+</form>
+
+<p><a asp-action="Index">&laquo; Listeye don</a></p>
