@@ -7,8 +7,10 @@ using Cms.Core.Tenancy;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Diagnostics;
+using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 
 public static class MasterDataExtensions
 {
@@ -54,7 +56,18 @@ public static class MasterDataExtensions
 
     public static IServiceCollection AddCmsAuthorization(this IServiceCollection services)
     {
-        services.AddScoped<IPermissionService, PermissionService>();
+        services.AddMemoryCache();
+        services.AddSingleton<MemoryPermissionCacheInvalidator>();
+        services.AddSingleton<IPermissionCacheInvalidator>(sp =>
+            sp.GetRequiredService<MemoryPermissionCacheInvalidator>());
+
+        services.AddScoped<PermissionService>();
+        services.AddScoped<IPermissionService>(sp => new CachedPermissionService(
+            sp.GetRequiredService<PermissionService>(),
+            sp.GetRequiredService<IMemoryCache>(),
+            sp.GetRequiredService<MemoryPermissionCacheInvalidator>(),
+            sp.GetRequiredService<ILogger<CachedPermissionService>>()));
+
         services.AddScoped<IAuthorizationHandler, HasPermissionHandler>();
         services.AddScoped<IAuthorizationHandler, SystemRoleHandler>();
         services.AddSingleton<IAuthorizationPolicyProvider, HasPermissionPolicyProvider>();

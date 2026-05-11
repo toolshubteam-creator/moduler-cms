@@ -12,6 +12,7 @@ using Microsoft.Extensions.Logging;
 public sealed class PermissionSeeder(
     MasterDbContext db,
     IReadOnlyList<ModuleDescriptor> modules,
+    IPermissionCacheInvalidator cacheInvalidator,
     ILogger<PermissionSeeder> logger)
 {
     public async Task ReconcileAsync(CancellationToken cancellationToken = default)
@@ -97,5 +98,9 @@ public sealed class PermissionSeeder(
         }
 
         await db.SaveChangesAsync(cancellationToken);
+
+        // Seed sonrasi cache stale olmasin — yeni eklenen/guncellenen permission'lar
+        // bekleyen istegin set'inde olmayabilir.
+        cacheInvalidator.InvalidateAll();
     }
 }

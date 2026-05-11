@@ -73,7 +73,7 @@ public class PermissionSeederTests(MySqlContainerFixture fixture) : IAsyncLifeti
 
         await using (var ctx = CreateContext())
         {
-            var seeder = new PermissionSeeder(ctx, modules, NullLogger<PermissionSeeder>.Instance);
+            var seeder = new PermissionSeeder(ctx, modules, new NoopInvalidator(), NullLogger<PermissionSeeder>.Instance);
             await seeder.ReconcileAsync();
         }
 
@@ -104,12 +104,12 @@ public class PermissionSeederTests(MySqlContainerFixture fixture) : IAsyncLifeti
 
         await using (var ctx1 = CreateContext())
         {
-            await new PermissionSeeder(ctx1, modules, NullLogger<PermissionSeeder>.Instance).ReconcileAsync();
+            await new PermissionSeeder(ctx1, modules, new NoopInvalidator(), NullLogger<PermissionSeeder>.Instance).ReconcileAsync();
         }
 
         await using (var ctx2 = CreateContext())
         {
-            await new PermissionSeeder(ctx2, modules, NullLogger<PermissionSeeder>.Instance).ReconcileAsync();
+            await new PermissionSeeder(ctx2, modules, new NoopInvalidator(), NullLogger<PermissionSeeder>.Instance).ReconcileAsync();
         }
 
         await using var assert = CreateContext();
@@ -140,7 +140,7 @@ public class PermissionSeederTests(MySqlContainerFixture fixture) : IAsyncLifeti
 
         await using (var ctx = CreateContext())
         {
-            await new PermissionSeeder(ctx, modules, NullLogger<PermissionSeeder>.Instance).ReconcileAsync();
+            await new PermissionSeeder(ctx, modules, new NoopInvalidator(), NullLogger<PermissionSeeder>.Instance).ReconcileAsync();
         }
 
         await using var assert = CreateContext();
@@ -166,7 +166,7 @@ public class PermissionSeederTests(MySqlContainerFixture fixture) : IAsyncLifeti
 
         await using (var ctx = CreateContext())
         {
-            await new PermissionSeeder(ctx, modules, NullLogger<PermissionSeeder>.Instance).ReconcileAsync();
+            await new PermissionSeeder(ctx, modules, new NoopInvalidator(), NullLogger<PermissionSeeder>.Instance).ReconcileAsync();
         }
 
         await using var assert = CreateContext();
@@ -176,5 +176,42 @@ public class PermissionSeederTests(MySqlContainerFixture fixture) : IAsyncLifeti
         saved.Should().Contain(p => p.Key == "blog.posts.create");
         saved.Should().Contain(p => p.Key == "core.audit.view");
         saved.Should().Contain(p => p.Key == "core.softdelete.manage");
+    }
+
+    [Fact]
+    public async Task Reconcile_OnCompletion_CallsInvalidateAll()
+    {
+        await using (var setup = CreateContext())
+        {
+            await setup.Database.MigrateAsync();
+        }
+
+        var modules = new[]
+        {
+            BuildModule("blog", new PermissionDescriptor { Key = "blog.posts.create", DisplayName = "X" }),
+        };
+
+        var invalidator = new RecordingInvalidator();
+        await using (var ctx = CreateContext())
+        {
+            await new PermissionSeeder(ctx, modules, invalidator, NullLogger<PermissionSeeder>.Instance).ReconcileAsync();
+        }
+
+        invalidator.InvalidateAllCallCount.Should().Be(1);
+    }
+
+    private sealed class NoopInvalidator : IPermissionCacheInvalidator
+    {
+        public void InvalidateUser(int userId) { }
+        public Task InvalidateRoleAsync(int roleId, CancellationToken cancellationToken = default) => Task.CompletedTask;
+        public void InvalidateAll() { }
+    }
+
+    private sealed class RecordingInvalidator : IPermissionCacheInvalidator
+    {
+        public int InvalidateAllCallCount { get; private set; }
+        public void InvalidateUser(int userId) { }
+        public Task InvalidateRoleAsync(int roleId, CancellationToken cancellationToken = default) => Task.CompletedTask;
+        public void InvalidateAll() => InvalidateAllCallCount++;
     }
 }
