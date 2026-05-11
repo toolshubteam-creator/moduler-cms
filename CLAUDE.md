@@ -198,6 +198,7 @@ Bir adım tamamlandı sayılır:
 > Bu liste fazlar ilerledikçe güncellenir.
 
 - settings (v1.0.0, core) — tenant-scoped key-value config store
+- media (v1.0.0, core) — tenant-izole dosya upload/serve, SHA256 dedup, soft-delete
 
 ## Referans Dokümanlar
 
