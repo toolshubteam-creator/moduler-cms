@@ -3,7 +3,7 @@
 > Bu dosya **canlı** durum dosyasıdır. Her adım sonunda güncellenir.
 > Sade tutuyoruz; detaylı task listesi her fazın açılışında konuşulup üretilir.
 
-**Son güncelleme:** Faz-3.1 (Audit + soft-delete interceptor altyapisi) — DONE
+**Son güncelleme:** Faz-3.2 (Audit log read UI + D-017 transaction wrapping) — DONE
 
 ---
 
@@ -53,7 +53,7 @@
 | Adım | Başlık | Durum |
 |---|---|---|
 | 3.1 | Base entity contracts + EF interceptor altyapisi | 🟢 DONE |
-| 3.2 | Audit log okuma + admin UI (read-only) | ⚪ TODO |
+| 3.2 | Audit log okuma + admin UI (read-only) | 🟢 DONE |
 | 3.3 | Soft delete restore akisi + admin UI | ⚪ TODO |
 | 3.4 | Permission cache + invalidation (D-012) | ⚪ TODO |
 | 3.5 | CRUD pattern referans dokumani + retrospektif | ⚪ TODO |
@@ -62,6 +62,7 @@
 
 ## Yapılanlar (kronolojik, en yeni üstte)
 
+- **Faz-3.2** (commit: `477aaf2`): D-017 KAPATILDI — AuditSaveChangesInterceptor transaction-aware refactor: ConditionalWeakTable<DbContext, AuditContextState> (PendingAudits + OwnedTransaction tek nesnede); SavingChanges{Async} sonrasi BeginOwnedTransactionIfNeeded (CurrentTransaction yoksa + pending varsa BeginTransaction); SavedChanges{Async} sonrasi FlushPending + CommitOwnedTransaction; SaveChangesFailed{Async} override AbortOwnedTransaction (rollback + state cleanup). 3 transaction testi: forced fail rollback (DROP TABLE Audit_Entries + DbUpdateException, main entity yok); outer transaction nested no-op (caller BeginTransaction + Rollback, hem main hem audit geri alindi); happy path commit. Areas/Admin/AuditController (Index, Authorize SystemRole, [FromQuery(Name="act")] auditAction route token collision fix); AuditIndexViewModel + AuditFilterViewModel + TenantOption record; Index.cshtml tenant dropdown + filtre fieldset + audit tablosu + <details>/<summary> JSON expand + prev/next pagination. CorePermissions sabit (ModuleId="core" rezerve, AuditView "core.audit.view"). PermissionSeeder.ReconcileAsync core permission'larini once seed eder, "core" prefix bypass valid; modul id "core" rezerve (warning + skip). _AdminLayout'a Audit Log nav link. 8 yeni test (3 transaction + 5 controller); toplam 108 test yesil. **FIX-01:** Route token collision — `action` parametre adi ASP.NET Core default route token'i ile cakisti (route value "Index" query "Update" onunde, AuditAction binmedi). [FromQuery(Name="act")] + view name="act" + asp-route-act ile fix. Manuel cURL testinde yakalandi. **NOT:** Faz-3.1'de yaratilan Audit_Entries migration mevcut tenant'lara (acme, browsertest) uygulanmadi — yeni provision edilen audittest tenant'inda dogrulandi. Mevcut tenant migration apply gap'i D-018 olarak Faz-3.3'e kaydedildi.
 - **Faz-3.1** (commit: `72f3322`): IAuditable + ISoftDeletable contract'lari (Cms.Core/Domain/Auditing) + AuditAction enum + AuditIgnoreAttribute + AuditEntry entity (tenant DB, Audit_ prefix, MySQL native JSON column for Changes) + AuditSaveChangesInterceptor (2-fazli: SavingChanges snapshot, SavedChanges PK populate + ayri SaveChanges; ConditionalWeakTable<DbContext, List<PendingAudit>> per-context state; ConcurrentDictionary reflection cache) + SoftDeleteInterceptor (Deleted->Modified+IsDeleted=true+DeletedAt=UtcNow) + ICurrentUserService (Cms.Core contract) + HttpCurrentUserService (Cms.Web impl, ClaimTypes.NameIdentifier int.TryParse) + SoftDeleteModelBuilderExtensions.ApplySoftDeleteFilters (reflection ile HasQueryFilter otomatik bagli) + AddCmsCurrentUser DI extension. TenantDbContextFactory ikinci ctor IEnumerable<IInterceptor>; ReplaceService<IModelCacheKeyFactory, TenantDbContextModelCacheKeyFactory>() — modul setine duyarli model cache (test isolation + Faz-5 dinamik modul hazirligi). AddAuditEntries migration. 21 yeni test (HttpCurrentUserService 6 + SoftDeleteInterceptor 3 + AuditInterceptor 6 + diger). Toplam 100 test yesil. **FIX-01:** EF Core model cache TenantDbContext tipini modul setinden bagimsiz paylasiyordu; TenantDbContextModelCacheKeyFactory eklendi (ModuleSetCacheKey = sirali modul id join'i anahtara dahil). **FIX-02:** Plan'daki "entry.Entity is AuditEntry" self-reference filter CS8121 (AuditEntry IAuditable degil); statik tip garantisi nedeniyle filter kaldirildi. **NOT:** Audit row main entity save'inden ayri SaveChanges ile yaziliyor — partial-failure penceresi acik; D-017 olarak Faz-3.2 basinda transaction wrapping ile kapanacak.
 - **Faz-2.4** (commits: `ff84bb8` 2.4a refactor, `1d236a7` 2.4b feat, `4431871` 2.4c feat): Composition root rework — `AddCmsModuleSystem` (DI registrations) + `LoadCmsModulesAsync(IHost)` (post-build) + `ModuleDescriptorRegistry` mutable holder; `BuildServiceProvider()` anti-pattern kaldirildi (D-005 kapatildi). `TenantProvisioningService` (DB lifecycle: CREATE DATABASE + migration + orphan DROP cleanup; SlugValidator regex + reserved listesi + case-insensitive normalize). Areas/Admin/TenantsController (Index/Create/Deactivate) + 3 Razor view (_AdminLayout + Tenants/Index + Create) + CreateTenantViewModel + SystemRole policy/handler/requirement. Toplam 30 yeni test (24 SlugValidator+Provisioning + 6 TenantsController). **FIX-01 (2.4a):** test parallelization deferred D-015 olarak kayit. **FIX-02 (2.4b):** Plan'in ic tutarsizligi (ACME slug invalid bekleniyordu ama validator ToLowerInvariant ile normalize ediyor) — InlineData duzeltildi. **FIX-03 (2.4c manuel UI):** SystemRole policy fail oldu cunku Faz-1.5 dev seed Sys_UserRoles atamasini composite-PK bug'inda kaybetmisti; admin user'a Admin role'u manuel SQL ile atandi. Toplam 85 test yesil. **Manuel UI dogrulamasi browser ile tamamlandi**: login -> create tenant `browsertest` -> MySQL'de `cms_tenant_browsertest` DB olustu + InitialTenant migration uygulandi -> deactivate -> includeInactive filter calisti -> logout. **Faz-2 KAPANDI.**
 - **Faz-2.3** (commit: `959d99a`): IPermissionService + PermissionService (SuperAdmin bypass: IsSystem=true rolu kontrolu atlar; tenant-scoped query: TenantId match veya null = global rol) + HasPermissionAttribute (AuthorizeAttribute miras, "perm:&lt;key&gt;" policy adi) + HasPermissionRequirement + HasPermissionHandler (ITenantContext'ten tenant id, ClaimTypes.NameIdentifier'dan userId) + HasPermissionPolicyProvider (DefaultAuthorizationPolicyProvider fallback ile dinamik on-demand policy uretimi) + PermissionSeeder (idempotent reconcile: yoksa ekler, varsa DisplayName/Description gunceller, ORPHAN PERMISSION'LARI SILMEZ; modul prefix validation) + AddCmsAuthorization DI extension + Cms.Web startup'ta seeder.ReconcileAsync(). 13 yeni test (6 PermissionService + 4 PermissionSeeder + 3 HasPermissionHandler unit). Toplam 56 test yesil.
@@ -78,7 +79,7 @@
 
 ## Sıradaki
 
-- **Faz-3.2:** Audit log read admin UI + D-017 transaction wrapping fix (Faz-3.1'den dogan integrity gap).
+- **Faz-3.3:** Soft delete restore akisi + admin UI; Faz-3.3 basinda D-018 (tenant migration apply mekanizmasi) kapatilacak.
 
 ---
 

@@ -4,7 +4,7 @@
 > Geçmiş kayıt değil — gelecek-bakışlı.
 > Her adım başında okunur, sonunda güncellenir.
 
-**Son güncelleme:** Faz-3.1 — D-017 (audit transactional integrity, Faz-3.2 tetigi) eklendi.
+**Son güncelleme:** Faz-3.2 — D-017 kapatildi (PROGRESS Faz-3.2'ye tasindi). D-018 (tenant migration apply gap, Faz-3.3 tetigi) eklendi.
 
 ---
 
@@ -90,10 +90,10 @@ ID formatı: `D-001`, `D-002`... (sıralı, silinince ID tekrar kullanılmaz)
 **Tetik:** Linux CI/CD eklendiginde (Faz-7 production hardening) — Linux runner'da reverse-DNS sorunu yok, test direkt yesil donecek.
 **Eklenme:** Faz-1.5
 
-### D-017 — Audit kayit transactional integrity
-**Bağlam:** Faz-3.1'de AuditSaveChangesInterceptor 2-fazli yazim kullaniyor — main entity save (SavingChangesAsync sirasinda snapshot, SavedChangesAsync sirasinda PK populate) ardindan ayri ikinci SaveChangesAsync ile audit row insert. Bu pencere main commit basarili + audit insert fail durumunda entity guncel kalir ama denetim izi yoktur. Cozum: AuditSaveChangesInterceptor SavingChanges'te `Database.BeginTransactionAsync()` ile transaction ac, SavedChanges'te audit insert + commit; nested transaction (caller zaten transaction acmissa) icin `Database.CurrentTransaction` kontrolu ile no-op. Test: forced audit insert fail (FakeAuditEntry CHECK constraint violation veya disconnect simulation) -> main entity rollback dogrulamasi.
-**Tetik:** Faz-3.2 basi (Audit UI'dan once integrity saglanmali)
-**Eklenme:** Faz-3.1
+### D-018 — Mevcut tenant'lara migration apply mekanizmasi
+**Bağlam:** Faz-3.1'de AddAuditEntries migration eklendi; TenantProvisioningService.CreateAsync provisioning sirasinda MigrateAsync cagiriyor, yani **yeni** tenant'lar migration aliyor. Ama Faz-2.4'te yaratilmis mevcut tenant'lar (acme, browsertest) Audit_Entries tablosuna sahip degil — Faz-3.2 manuel UI testinde dogrulandi (browsertest secildiginde HTTP 500, Table 'cms_tenant_browsertest.audit_entries' doesn't exist). Production'da da ayni sorun: yeni migration -> mevcut tenant DB'leri stale. Cozum: (a) app start'ta IsDevelopment() iken otomatik MigrateAsync (tum aktif tenant'lar uzerinde, sequential); (b) Areas/Admin/TenantsController'a "Migrate All Tenants" actionu (progress feedback); (c) production icin CLI komutu / out-of-band migration runner. Faz-3.3 basinda kapatilmali — yeni soft-delete migration eklenecek, gap genisleyecek. Onerilen yol: hibrit (a) + (b) — dev'de auto, admin UI'da manuel buton; production icin manuel sart.
+**Tetik:** Faz-3.3 basi (yeni soft-delete migration ile birlikte)
+**Eklenme:** Faz-3.2
 
 ---
 
@@ -103,7 +103,7 @@ ID formatı: `D-001`, `D-002`... (sıralı, silinince ID tekrar kullanılmaz)
 |---|---|
 | Faz-1 | 0 |
 | Faz-2 | 0 |
-| Faz-3 | 3 (D-002 alternatif Faz-6, D-012, D-017) |
+| Faz-3 | 3 (D-002 alternatif Faz-6, D-012, D-018) |
 | Faz-4 | 0 |
 | Faz-5 | 1 (D-014) |
 | Faz-6 | 0 |
