@@ -4,7 +4,7 @@
 > Geçmiş kayıt değil — gelecek-bakışlı.
 > Her adım başında okunur, sonunda güncellenir.
 
-**Son güncelleme:** Faz-3.2 — D-017 kapatildi (PROGRESS Faz-3.2'ye tasindi). D-018 (tenant migration apply gap, Faz-3.3 tetigi) eklendi.
+**Son güncelleme:** Faz-3.3 — D-018 kapatildi (PROGRESS Faz-3.3'e tasindi). D-019 (tenant migration fail UI gorunurluk, Faz-7 tetigi) eklendi.
 
 ---
 
@@ -90,10 +90,10 @@ ID formatı: `D-001`, `D-002`... (sıralı, silinince ID tekrar kullanılmaz)
 **Tetik:** Linux CI/CD eklendiginde (Faz-7 production hardening) — Linux runner'da reverse-DNS sorunu yok, test direkt yesil donecek.
 **Eklenme:** Faz-1.5
 
-### D-018 — Mevcut tenant'lara migration apply mekanizmasi
-**Bağlam:** Faz-3.1'de AddAuditEntries migration eklendi; TenantProvisioningService.CreateAsync provisioning sirasinda MigrateAsync cagiriyor, yani **yeni** tenant'lar migration aliyor. Ama Faz-2.4'te yaratilmis mevcut tenant'lar (acme, browsertest) Audit_Entries tablosuna sahip degil — Faz-3.2 manuel UI testinde dogrulandi (browsertest secildiginde HTTP 500, Table 'cms_tenant_browsertest.audit_entries' doesn't exist). Production'da da ayni sorun: yeni migration -> mevcut tenant DB'leri stale. Cozum: (a) app start'ta IsDevelopment() iken otomatik MigrateAsync (tum aktif tenant'lar uzerinde, sequential); (b) Areas/Admin/TenantsController'a "Migrate All Tenants" actionu (progress feedback); (c) production icin CLI komutu / out-of-band migration runner. Faz-3.3 basinda kapatilmali — yeni soft-delete migration eklenecek, gap genisleyecek. Onerilen yol: hibrit (a) + (b) — dev'de auto, admin UI'da manuel buton; production icin manuel sart.
-**Tetik:** Faz-3.3 basi (yeni soft-delete migration ile birlikte)
-**Eklenme:** Faz-3.2
+### D-019 — Tenant migration fail nedenini admin UI'da goster
+**Bağlam:** Faz-3.3'te TenantMigrationRunner tek tenant fail'inin digerlerini durdurmamasi tasarlandi (D-018 cozumu) — fail durumlari ILogger ile log'a yazilir, admin UI sadece sayisal ozet (X/Y ok, Z fail) gosterir. Hangi tenant fail oldu, hangi exception, hangi timestamp? Admin perspektifinden gorunmuyor. Faz-3.3 manuel UI testinde acme tenant'in Faz-2.4 oncesi bozuk conn string'i fail oldu — runner durmadan devam etti (dogru davranis) ama admin "neden 1 fail?" sorusuna ancak log dosyasini acarak cevap bulur. Cozum secenekleri: (a) TempData'da fail detay listesi (gecici, redirect sonrasi temizlenir); (b) Sys_TenantMigrationLog tablosu (Timestamp, TenantId, Status, ErrorMessage; admin UI'da gecmis migration kayitlari sayfasi); (c) TenantMigrationReport extended (per-tenant FailureDetail listesi, view'da expandable). Production'da en degerlisi (b) — kalici denetim izi + raporlama. Dev'de (c) yeterli (log + tek seferlik gosterim).
+**Tetik:** Faz-7 (production hardening — admin gorunurluk prod'da kritik, dev'de log yeterli)
+**Eklenme:** Faz-3.3
 
 ---
 
@@ -103,11 +103,11 @@ ID formatı: `D-001`, `D-002`... (sıralı, silinince ID tekrar kullanılmaz)
 |---|---|
 | Faz-1 | 0 |
 | Faz-2 | 0 |
-| Faz-3 | 3 (D-002 alternatif Faz-6, D-012, D-018) |
+| Faz-3 | 2 (D-002 alternatif Faz-6, D-012) |
 | Faz-4 | 0 |
 | Faz-5 | 1 (D-014) |
 | Faz-6 | 0 |
-| Faz-7 | 7 (D-007, D-008, D-009, D-010, D-011, D-013, D-016) |
+| Faz-7 | 8 (D-007, D-008, D-009, D-010, D-011, D-013, D-016, D-019) |
 | Faz-8 | 1 (D-006) |
 | v2 | 1 (D-004) |
 | Tetik: test suresi 15dk | 1 (D-015) |
