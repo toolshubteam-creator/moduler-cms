@@ -3,8 +3,11 @@ using Cms.Core.Auth;
 using Cms.Core.Authorization;
 using Cms.Core.Data;
 using Cms.Core.Data.Entities;
+using Cms.Core.Extensions;
 using Cms.Core.Modules;
+using Cms.Core.Security;
 using Cms.Core.Tenancy;
+using Cms.Web.Security;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.EntityFrameworkCore;
 using Serilog;
@@ -26,6 +29,9 @@ builder.Services.AddCmsMaster(builder.Configuration);
 builder.Services.AddCmsTenancy(builder.Configuration);
 
 builder.Services.AddCmsTenantData();
+
+builder.Services.AddCmsCurrentUser();
+builder.Services.AddScoped<ICurrentUserService, HttpCurrentUserService>();
 
 builder.Services
     .AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme)
