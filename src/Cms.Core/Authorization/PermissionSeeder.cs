@@ -5,6 +5,7 @@ using Cms.Abstractions.Modules.Permissions;
 using Cms.Core.Data;
 using Cms.Core.Data.Entities;
 using Cms.Core.Modules;
+using Cms.Core.Security;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 
@@ -16,8 +17,32 @@ public sealed class PermissionSeeder(
     public async Task ReconcileAsync(CancellationToken cancellationToken = default)
     {
         var declared = new List<(PermissionDescriptor Desc, string ModuleId)>();
+
+        // Cekirdek platform permission'lari ("core" reserved module id).
+        foreach (var desc in CorePermissions.All)
+        {
+            var normalized = desc.Key.Trim().ToLowerInvariant();
+            if (!normalized.StartsWith(CorePermissions.ModuleId + ".", StringComparison.Ordinal))
+            {
+                logger.LogWarning(
+                    "Core permission key '{Key}' '{Prefix}.' ile baslamiyor, atlandi.",
+                    desc.Key, CorePermissions.ModuleId);
+                continue;
+            }
+            declared.Add((desc with { Key = normalized }, CorePermissions.ModuleId));
+        }
+
+        // Modul permission'lari — module id == "core" rezerve oldugu icin bu yola dusmez.
         foreach (var module in modules)
         {
+            if (string.Equals(module.Manifest.Id, CorePermissions.ModuleId, StringComparison.Ordinal))
+            {
+                logger.LogWarning(
+                    "Modul '{Module}' rezerve 'core' id'sini kullaniyor, permission seed'i atlandi.",
+                    module.Manifest.Id);
+                continue;
+            }
+
             if (module.Instance is not IHasPermissions hasPermissions)
             {
                 continue;

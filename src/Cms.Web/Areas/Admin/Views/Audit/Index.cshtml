@@ -1,0 +1,145 @@
+@using Cms.Core.Domain.Auditing
+@using Cms.Web.Areas.Admin.ViewModels
+@model AuditIndexViewModel
+@{
+    ViewData["Title"] = "Audit Log";
+    var filter = Model.Filter;
+}
+
+<h1>Audit Log</h1>
+
+<form method="get" asp-action="Index">
+    <fieldset>
+        <legend>Tenant</legend>
+        <label for="tenantId">Tenant:</label>
+        <select id="tenantId" name="tenantId">
+            <option value="">— Tenant secin —</option>
+            @foreach (var t in Model.Tenants)
+            {
+                if (Model.SelectedTenantId == t.Id)
+                {
+                    <option value="@t.Id" selected>@t.Slug — @t.DisplayName</option>
+                }
+                else
+                {
+                    <option value="@t.Id">@t.Slug — @t.DisplayName</option>
+                }
+            }
+        </select>
+        <button type="submit">Goruntule</button>
+    </fieldset>
+
+    @if (Model.SelectedTenantId.HasValue)
+    {
+        <fieldset>
+            <legend>Filtre</legend>
+            <label>Entity:
+                <input type="text" name="entityName" value="@filter.EntityName" placeholder="orn. Post" />
+            </label>
+            <label>User Id:
+                <input type="number" name="userId" value="@filter.UserId" />
+            </label>
+            <label>Action:
+                <select name="act">
+                    <option value="">(hepsi)</option>
+                    @foreach (var a in Enum.GetValues<AuditAction>())
+                    {
+                        if (filter.Action == a)
+                        {
+                            <option value="@a" selected>@a</option>
+                        }
+                        else
+                        {
+                            <option value="@a">@a</option>
+                        }
+                    }
+                </select>
+            </label>
+            <label>Tarihten:
+                <input type="datetime-local" name="from" value="@(filter.From?.ToString("yyyy-MM-ddTHH:mm"))" />
+            </label>
+            <label>Tarihe:
+                <input type="datetime-local" name="to" value="@(filter.To?.ToString("yyyy-MM-ddTHH:mm"))" />
+            </label>
+            <button type="submit">Filtrele</button>
+            <a asp-action="Index" asp-route-tenantId="@Model.SelectedTenantId">Temizle</a>
+        </fieldset>
+    }
+</form>
+
+@if (!Model.SelectedTenantId.HasValue)
+{
+    <p><em>Audit kayitlarini gormek icin yukaridan bir tenant secin.</em></p>
+}
+else if (Model.Entries.Count == 0)
+{
+    <p><em>Bu tenant icin denetim kaydi bulunamadi.</em></p>
+}
+else
+{
+    <p>Toplam: <strong>@Model.TotalCount</strong> kayit · Sayfa @Model.Page / @Model.TotalPages</p>
+
+    <table>
+        <thead>
+            <tr>
+                <th>Zaman (UTC)</th>
+                <th>Entity</th>
+                <th>Id</th>
+                <th>Action</th>
+                <th>User</th>
+                <th>Changes</th>
+            </tr>
+        </thead>
+        <tbody>
+        @foreach (var entry in Model.Entries)
+        {
+            <tr>
+                <td>@entry.Timestamp.ToString("yyyy-MM-dd HH:mm:ss")</td>
+                <td>@entry.EntityName</td>
+                <td>@entry.EntityId</td>
+                <td>@entry.Action</td>
+                <td>@(entry.UserId?.ToString() ?? "—")</td>
+                <td>
+                    @if (string.IsNullOrEmpty(entry.Changes))
+                    {
+                        <span>—</span>
+                    }
+                    else
+                    {
+                        <details>
+                            <summary>Goruntule</summary>
+                            <pre>@entry.Changes</pre>
+                        </details>
+                    }
+                </td>
+            </tr>
+        }
+        </tbody>
+    </table>
+
+    <nav>
+        @if (Model.HasPrevious)
+        {
+            <a asp-action="Index"
+               asp-route-tenantId="@Model.SelectedTenantId"
+               asp-route-entityName="@filter.EntityName"
+               asp-route-userId="@filter.UserId"
+               asp-route-act="@filter.Action"
+               asp-route-from="@filter.From"
+               asp-route-to="@filter.To"
+               asp-route-page="@(Model.Page - 1)">&laquo; Onceki</a>
+        }
+        @if (Model.HasNext)
+        {
+            <span> | </span>
+            <a asp-action="Index"
+               asp-route-tenantId="@Model.SelectedTenantId"
+               asp-route-entityName="@filter.EntityName"
+               asp-route-userId="@filter.UserId"
+               asp-route-act="@filter.Action"
+               asp-route-from="@filter.From"
+               asp-route-to="@filter.To"
+               asp-route-page="@(Model.Page + 1)">Sonraki &raquo;</a>
+        }
+    </nav>
+}

@@ -10,6 +10,7 @@ using Cms.Core.Security;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.ChangeTracking;
 using Microsoft.EntityFrameworkCore.Diagnostics;
+using Microsoft.EntityFrameworkCore.Storage;
 using Microsoft.Extensions.DependencyInjection;
 
 /// <summary>
@@ -20,13 +21,17 @@ using Microsoft.Extensions.DependencyInjection;
 ///
 /// Snapshot 2-fazli yazilir: SavingChangesAsync pending listeyi (per-DbContext, ConditionalWeakTable)
 /// olusturur, SavedChangesAsync auto-increment PK'lar populate olduktan sonra AuditEntry'leri
-/// olusturur ve ayrica bir SaveChangesAsync ile persist eder. Audit row main entity ile ayni
-/// transaction'da degil, sonrasinda kayit edilir; partial-failure durumu Faz-3+ konusu.
+/// olusturur ve ayrica bir SaveChangesAsync ile persist eder.
+///
+/// D-017: Main entity save + audit row insert atomicligi icin interceptor SavingChanges'te
+/// outer transaction yoksa OWNED transaction acar; SavedChanges'te commit, SaveChangesFailedAsync'te
+/// rollback. Caller (orn. TenantProvisioningService) zaten transaction acmissa interceptor
+/// no-op (CurrentTransaction != null) — caller'in sorumluluguna birakilir.
 /// </summary>
 public sealed class AuditSaveChangesInterceptor(IServiceProvider rootProvider) : SaveChangesInterceptor
 {
     private static readonly ConcurrentDictionary<Type, IReadOnlySet<string>> _ignoredCache = new();
-    private static readonly ConditionalWeakTable<DbContext, List<PendingAudit>> _pending = new();
+    private static readonly ConditionalWeakTable<DbContext, AuditContextState> _state = new();
 
     private static readonly JsonSerializerOptions _jsonOptions = new()
     {
@@ -40,17 +45,19 @@ public sealed class AuditSaveChangesInterceptor(IServiceProvider rootProvider) :
         DbContextEventData eventData,
         InterceptionResult<int> result)
     {
-        CollectPending(eventData.Context);
+        var state = CollectPending(eventData.Context);
+        BeginOwnedTransactionIfNeeded(eventData.Context, state);
         return base.SavingChanges(eventData, result);
     }
 
-    public override ValueTask<InterceptionResult<int>> SavingChangesAsync(
+    public override async ValueTask<InterceptionResult<int>> SavingChangesAsync(
         DbContextEventData eventData,
         InterceptionResult<int> result,
         CancellationToken cancellationToken = default)
     {
-        CollectPending(eventData.Context);
-        return base.SavingChangesAsync(eventData, result, cancellationToken);
+        var state = CollectPending(eventData.Context);
+        await BeginOwnedTransactionIfNeededAsync(eventData.Context, state, cancellationToken).ConfigureAwait(false);
+        return await base.SavingChangesAsync(eventData, result, cancellationToken).ConfigureAwait(false);
     }
 
     public override int SavedChanges(SaveChangesCompletedEventData eventData, int result)
@@ -68,16 +75,34 @@ public sealed class AuditSaveChangesInterceptor(IServiceProvider rootProvider) :
         return await base.SavedChangesAsync(eventData, result, cancellationToken).ConfigureAwait(false);
     }
 
-    private void CollectPending(DbContext? ctx)
+    public override void SaveChangesFailed(DbContextErrorEventData eventData)
+    {
+        AbortOwnedTransaction(eventData.Context);
+        base.SaveChangesFailed(eventData);
+    }
+
+    public override async Task SaveChangesFailedAsync(
+        DbContextErrorEventData eventData,
+        CancellationToken cancellationToken = default)
+    {
+        await AbortOwnedTransactionAsync(eventData.Context, cancellationToken).ConfigureAwait(false);
+        await base.SaveChangesFailedAsync(eventData, cancellationToken).ConfigureAwait(false);
+    }
+
+    private AuditContextState? CollectPending(DbContext? ctx)
     {
         if (ctx is null)
         {
-            return;
+            return null;
         }
 
+        var state = GetOrCreateState(ctx);
+
+        // Nested call: bir onceki SaveChanges butun snapshot listesini hala tasiyabilir
+        // (SavedChanges icindeki ikinci SaveChangesAsync recursive cagri yapar).
+        // Nested cagrida pending zaten flush edildiyse veya bos baslangic — guvenli.
         var userId = ResolveUserId();
         var now = DateTime.UtcNow;
-        var pending = new List<PendingAudit>();
 
         // AuditEntry kendisi IAuditable degil, bu yuzden Entries<IAuditable>() asla onu dondurmez —
         // self-reference koruma static tip kontrolu ile garantilidir.
@@ -94,46 +119,207 @@ public sealed class AuditSaveChangesInterceptor(IServiceProvider rootProvider) :
 
             if (entry.State == EntityState.Added)
             {
-                pending.Add(new PendingAudit(entry.Metadata.ClrType.Name, action, entry, null, userId, now, changes));
+                state.PendingAudits.Add(new PendingAudit(entry.Metadata.ClrType.Name, action, entry, null, userId, now, changes));
             }
             else
             {
                 var pk = ReadPrimaryKey(entry, useOriginal: entry.State == EntityState.Deleted);
-                pending.Add(new PendingAudit(entry.Metadata.ClrType.Name, action, null, pk, userId, now, changes));
+                state.PendingAudits.Add(new PendingAudit(entry.Metadata.ClrType.Name, action, null, pk, userId, now, changes));
             }
         }
 
-        if (pending.Count == 0)
+        return state;
+    }
+
+    private static AuditContextState GetOrCreateState(DbContext ctx)
+    {
+        if (_state.TryGetValue(ctx, out var existing))
+        {
+            return existing;
+        }
+
+        var fresh = new AuditContextState();
+        _state.Add(ctx, fresh);
+        return fresh;
+    }
+
+    private static void BeginOwnedTransactionIfNeeded(DbContext? ctx, AuditContextState? state)
+    {
+        if (ctx is null || state is null || state.PendingAudits.Count == 0)
         {
             return;
         }
+        if (ctx.Database.CurrentTransaction is not null)
+        {
+            return;
+        }
+        if (state.OwnedTransaction is not null)
+        {
+            return;
+        }
+        state.OwnedTransaction = ctx.Database.BeginTransaction();
+    }
 
-        _pending.Remove(ctx);
-        _pending.Add(ctx, pending);
+    private static async ValueTask BeginOwnedTransactionIfNeededAsync(
+        DbContext? ctx, AuditContextState? state, CancellationToken cancellationToken)
+    {
+        if (ctx is null || state is null || state.PendingAudits.Count == 0)
+        {
+            return;
+        }
+        if (ctx.Database.CurrentTransaction is not null)
+        {
+            return;
+        }
+        if (state.OwnedTransaction is not null)
+        {
+            return;
+        }
+        state.OwnedTransaction = await ctx.Database.BeginTransactionAsync(cancellationToken).ConfigureAwait(false);
     }
 
     private static void FlushPending(DbContext? ctx)
     {
-        if (ctx is null || !_pending.TryGetValue(ctx, out var pending) || pending.Count == 0)
+        if (ctx is null || !_state.TryGetValue(ctx, out var state) || state.PendingAudits.Count == 0)
         {
             return;
         }
 
-        _pending.Remove(ctx);
-        AddAuditEntries(ctx, pending);
-        ctx.SaveChanges();
+        var pending = state.PendingAudits.ToList();
+        state.PendingAudits.Clear();
+
+        try
+        {
+            AddAuditEntries(ctx, pending);
+            ctx.SaveChanges();
+            CommitOwnedTransaction(state);
+        }
+        catch
+        {
+            AbortOwnedTransactionInternal(state);
+            throw;
+        }
     }
 
     private static async Task FlushPendingAsync(DbContext? ctx, CancellationToken cancellationToken)
     {
-        if (ctx is null || !_pending.TryGetValue(ctx, out var pending) || pending.Count == 0)
+        if (ctx is null || !_state.TryGetValue(ctx, out var state) || state.PendingAudits.Count == 0)
         {
             return;
         }
 
-        _pending.Remove(ctx);
-        AddAuditEntries(ctx, pending);
-        await ctx.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+        var pending = state.PendingAudits.ToList();
+        state.PendingAudits.Clear();
+
+        try
+        {
+            AddAuditEntries(ctx, pending);
+            await ctx.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+            await CommitOwnedTransactionAsync(state, cancellationToken).ConfigureAwait(false);
+        }
+        catch
+        {
+            await AbortOwnedTransactionInternalAsync(state, cancellationToken).ConfigureAwait(false);
+            throw;
+        }
+    }
+
+    private static void CommitOwnedTransaction(AuditContextState state)
+    {
+        if (state.OwnedTransaction is null)
+        {
+            return;
+        }
+        try
+        {
+            state.OwnedTransaction.Commit();
+        }
+        finally
+        {
+            state.OwnedTransaction.Dispose();
+            state.OwnedTransaction = null;
+        }
+    }
+
+    private static async ValueTask CommitOwnedTransactionAsync(AuditContextState state, CancellationToken cancellationToken)
+    {
+        if (state.OwnedTransaction is null)
+        {
+            return;
+        }
+        try
+        {
+            await state.OwnedTransaction.CommitAsync(cancellationToken).ConfigureAwait(false);
+        }
+        finally
+        {
+            await state.OwnedTransaction.DisposeAsync().ConfigureAwait(false);
+            state.OwnedTransaction = null;
+        }
+    }
+
+    private static void AbortOwnedTransaction(DbContext? ctx)
+    {
+        if (ctx is null || !_state.TryGetValue(ctx, out var state))
+        {
+            return;
+        }
+
+        state.PendingAudits.Clear();
+        AbortOwnedTransactionInternal(state);
+    }
+
+    private static async Task AbortOwnedTransactionAsync(DbContext? ctx, CancellationToken cancellationToken)
+    {
+        if (ctx is null || !_state.TryGetValue(ctx, out var state))
+        {
+            return;
+        }
+
+        state.PendingAudits.Clear();
+        await AbortOwnedTransactionInternalAsync(state, cancellationToken).ConfigureAwait(false);
+    }
+
+    private static void AbortOwnedTransactionInternal(AuditContextState state)
+    {
+        if (state.OwnedTransaction is null)
+        {
+            return;
+        }
+        try
+        {
+            state.OwnedTransaction.Rollback();
+        }
+        catch
+        {
+            // Rollback patlarsa swallow — exception zaten propagation halinde.
+        }
+        finally
+        {
+            state.OwnedTransaction.Dispose();
+            state.OwnedTransaction = null;
+        }
+    }
+
+    private static async Task AbortOwnedTransactionInternalAsync(AuditContextState state, CancellationToken cancellationToken)
+    {
+        if (state.OwnedTransaction is null)
+        {
+            return;
+        }
+        try
+        {
+            await state.OwnedTransaction.RollbackAsync(cancellationToken).ConfigureAwait(false);
+        }
+        catch
+        {
+            // Rollback patlarsa swallow — exception zaten propagation halinde.
+        }
+        finally
+        {
+            await state.OwnedTransaction.DisposeAsync().ConfigureAwait(false);
+            state.OwnedTransaction = null;
+        }
     }
 
     private static void AddAuditEntries(DbContext ctx, List<PendingAudit> pending)
@@ -272,6 +458,13 @@ public sealed class AuditSaveChangesInterceptor(IServiceProvider rootProvider) :
             IFormattable f => f.ToString(null, CultureInfo.InvariantCulture),
             _ => Convert.ToString(value, CultureInfo.InvariantCulture) ?? string.Empty,
         };
+
+    private sealed class AuditContextState
+    {
+        public List<PendingAudit> PendingAudits { get; } = [];
+
+        public IDbContextTransaction? OwnedTransaction { get; set; }
+    }
 
     private sealed record PendingAudit(
         string EntityName,

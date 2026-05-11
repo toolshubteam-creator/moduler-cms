@@ -79,10 +79,13 @@ public class PermissionSeederTests(MySqlContainerFixture fixture) : IAsyncLifeti
 
         await using var assert = CreateContext();
         var saved = await assert.Permissions.OrderBy(p => p.Key).ToListAsync();
-        saved.Should().HaveCount(2);
-        saved[0].Key.Should().Be("blog.posts.create");
-        saved[0].DisplayName.Should().Be("Yazi Olustur");
-        saved[0].ModuleId.Should().Be("blog");
+        // Faz-3.2: core.audit.view de seed ediliyor (CorePermissions).
+        saved.Should().HaveCount(3);
+        var blogPerms = saved.Where(p => p.ModuleId == "blog").OrderBy(p => p.Key).ToList();
+        blogPerms.Should().HaveCount(2);
+        blogPerms[0].Key.Should().Be("blog.posts.create");
+        blogPerms[0].DisplayName.Should().Be("Yazi Olustur");
+        saved.Should().Contain(p => p.Key == "core.audit.view" && p.ModuleId == "core");
     }
 
     [Fact]
@@ -109,8 +112,9 @@ public class PermissionSeederTests(MySqlContainerFixture fixture) : IAsyncLifeti
         }
 
         await using var assert = CreateContext();
+        // Faz-3.2: 1 modul perm + 1 core perm; iki run sonrasi hala 2 olmali (idempotent).
         var count = await assert.Permissions.CountAsync();
-        count.Should().Be(1);
+        count.Should().Be(2);
     }
 
     [Fact]
@@ -166,7 +170,9 @@ public class PermissionSeederTests(MySqlContainerFixture fixture) : IAsyncLifeti
 
         await using var assert = CreateContext();
         var saved = await assert.Permissions.ToListAsync();
-        saved.Should().HaveCount(1);
-        saved[0].Key.Should().Be("blog.posts.create");
+        // Faz-3.2: prefix-uyumsuz key atlanir, blog.posts.create + core.audit.view kalir.
+        saved.Should().HaveCount(2);
+        saved.Should().Contain(p => p.Key == "blog.posts.create");
+        saved.Should().Contain(p => p.Key == "core.audit.view");
     }
 }
