@@ -187,6 +187,7 @@ Asagidakileri YAPMA — cekirdek davranisi bozar:
 - ❌ `ctx.FindAsync(...)` ile soft-deleted entity arama — EF Core 9 davranisi belirsiz, `IgnoreQueryFilters().FirstOrDefaultAsync` kullan
 - ❌ MVC parametre adlari icin `action` / `controller` / `area` — route token collision (Faz-3.2 FIX). `auditAction` + `[FromQuery(Name="act")]` gibi rename
 - ❌ Modul DLL'i tek `Copy($(TargetPath))` ile kopyalama — `.deps.json` ve transitif `.dll`'ler eksik kalir, AssemblyDependencyResolver runtime'da fail eder (Faz-4.1 FIX). `src/Modules/Directory.Build.targets` glob pattern (`$(TargetDir)*.dll`, `$(TargetDir)*.deps.json`) kullanir; modul yazarinin csproj'a Copy target eklemesine gerek yok (Directory.Build.targets her `src/Modules/*` projeye otomatik uygulanir).
+- ❌ Cross-module reference icin hedef modulun ana projesine ProjectReference atma — sadece `Cms.Modules.X.Contracts` projesine referans verilir (CLAUDE.md Kural 5). Contracts.dll'leri host start'inda Default AssemblyLoadContext'e eagerly yuklenir (ModuleHostExtensions); modul yazarinin ek ALC konfigurasyonuna gerek yok (Faz-4.3 FIX).
 
 ## 7. Audit Restore Davranisi
 
@@ -202,6 +203,36 @@ await ctx.SaveChangesAsync();
 ```
 
 AuditSaveChangesInterceptor `IsDeleted: true→false` transition'i tespit eder, AuditEntry.Action = Restore olarak yazar (Update degil). Admin `/Admin/SoftDelete` UI'da bu adim otomatik yapilir; modul kendi UI'inde elle restore kodu yazabilir.
+
+## 7.1 Cross-Module Reference (Faz-4.3)
+
+Modul A'nin Modul B'den okumasi — Sadece B'nin Contracts projesine referans:
+
+```xml
+<!-- Cms.Modules.Seo.csproj -->
+<ProjectReference Include="..\Cms.Modules.Settings.Contracts\Cms.Modules.Settings.Contracts.csproj" />
+```
+
+```csharp
+// SeoMetaService.cs
+public sealed class SeoMetaService(TenantDbContext db, ISettingsService settings) : ISeoMetaService
+{
+    public async Task<SeoMetaResolved> ResolveAsync(string targetType, string targetId, CancellationToken ct = default)
+    {
+        var meta = await GetAsync(targetType, targetId, ct);
+        var defaultTitle = await settings.GetAsync<string>("seo.default_title", ct);
+        return new SeoMetaResolved(
+            Title: meta?.Title ?? defaultTitle,
+            // ...
+        );
+    }
+}
+```
+
+Onemli noktalar:
+- Sadece **Contracts**'a ref. Ana projeye (`Cms.Modules.Settings`) ref atma; build-time guard (`src/Cms.Web/Directory.Build.targets`) Cms.Web tarafindaki Modules.* referansini reddediyor ama modul-modul ProjectReference'a engel yok — Kural 5 mimari kuralidir (sadece Contracts uzerinden iletisim).
+- Contracts type identity: `Cms.Modules.*.Contracts.dll`'leri host start'inda Default ALC'ye eagerly yuklenir (`ModuleHostExtensions.UseCmsModules`); birden cok modul ayni interface'i paylasir. Manuel ALC konfigurasyonu gerekmez.
+- Servis sirasi: hedef modul (B) `RegisterServices`'inde implementasyonu DI'ye eklemeli; modul yukleme sirasi `IsCorePlugin` + `Manifest.Dependencies` ile topological sort yapilir. Bagimlilik bildirimi yoksa alfabetik discovery sirasi gecerlidir — DI build sirasinda tum modul registration'lari toplandiktan sonra resolution yapildigi icin sirasi onemsiz.
 
 ## 8. Ozet Tablo
 
