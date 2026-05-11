@@ -1,5 +1,6 @@
 namespace Cms.Web.Areas.Admin.Controllers;
 
+using Cms.Core.Data;
 using Cms.Core.Tenancy;
 using Cms.Web.Models.Admin;
 using Microsoft.AspNetCore.Authorization;
@@ -58,6 +59,23 @@ public sealed class TenantsController(ITenantProvisioningService provisioning) :
         }
 
         TempData["SuccessMessage"] = "Tenant pasiflestirildi.";
+        return RedirectToAction(nameof(Index));
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> MigrateAll([FromServices] TenantMigrationRunner runner)
+    {
+        var report = await runner.MigrateAllTenantsAsync(HttpContext.RequestAborted);
+        if (report.Failed > 0)
+        {
+            TempData["ErrorMessage"] =
+                $"{report.Successful}/{report.Total} tenant migrate edildi. {report.Failed} fail (log'a bakin).";
+        }
+        else
+        {
+            TempData["SuccessMessage"] = $"{report.Successful}/{report.Total} tenant migrate edildi.";
+        }
         return RedirectToAction(nameof(Index));
     }
 }

@@ -79,13 +79,14 @@ public class PermissionSeederTests(MySqlContainerFixture fixture) : IAsyncLifeti
 
         await using var assert = CreateContext();
         var saved = await assert.Permissions.OrderBy(p => p.Key).ToListAsync();
-        // Faz-3.2: core.audit.view de seed ediliyor (CorePermissions).
-        saved.Should().HaveCount(3);
+        // Faz-3.3: 2 modul perm + 2 core perm (audit.view + softdelete.manage)
+        var corePerms = saved.Where(p => p.ModuleId == "core").ToList();
         var blogPerms = saved.Where(p => p.ModuleId == "blog").OrderBy(p => p.Key).ToList();
         blogPerms.Should().HaveCount(2);
         blogPerms[0].Key.Should().Be("blog.posts.create");
         blogPerms[0].DisplayName.Should().Be("Yazi Olustur");
-        saved.Should().Contain(p => p.Key == "core.audit.view" && p.ModuleId == "core");
+        corePerms.Should().Contain(p => p.Key == "core.audit.view");
+        corePerms.Should().Contain(p => p.Key == "core.softdelete.manage");
     }
 
     [Fact]
@@ -112,9 +113,9 @@ public class PermissionSeederTests(MySqlContainerFixture fixture) : IAsyncLifeti
         }
 
         await using var assert = CreateContext();
-        // Faz-3.2: 1 modul perm + 1 core perm; iki run sonrasi hala 2 olmali (idempotent).
+        // Faz-3.3: 1 modul perm + 2 core perm; iki run sonrasi hala 3 olmali (idempotent).
         var count = await assert.Permissions.CountAsync();
-        count.Should().Be(2);
+        count.Should().Be(3);
     }
 
     [Fact]
@@ -170,9 +171,10 @@ public class PermissionSeederTests(MySqlContainerFixture fixture) : IAsyncLifeti
 
         await using var assert = CreateContext();
         var saved = await assert.Permissions.ToListAsync();
-        // Faz-3.2: prefix-uyumsuz key atlanir, blog.posts.create + core.audit.view kalir.
-        saved.Should().HaveCount(2);
+        // Faz-3.3: prefix-uyumsuz key atlanir; blog.posts.create + 2 core perm kalir.
+        saved.Should().HaveCount(3);
         saved.Should().Contain(p => p.Key == "blog.posts.create");
         saved.Should().Contain(p => p.Key == "core.audit.view");
+        saved.Should().Contain(p => p.Key == "core.softdelete.manage");
     }
 }

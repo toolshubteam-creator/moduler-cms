@@ -17,6 +17,11 @@
     {
         <a asp-action="Index" asp-route-includeInactive="true">Pasifler Dahil</a>
     }
+    <span>|</span>
+    <form asp-action="MigrateAll" method="post" style="display:inline;">
+        @Html.AntiForgeryToken()
+        <button type="submit" onclick="return confirm('Tum aktif tenant lara migration uygulansin mi?');">Tum Tenant'lari Migrate Et</button>
+    </form>
 </p>
 
 @if (Model.Count == 0)

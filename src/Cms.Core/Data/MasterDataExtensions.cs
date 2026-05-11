@@ -44,9 +44,11 @@ public static class MasterDataExtensions
 
         services.AddSingleton<ITenantDbContextFactory>(sp => new TenantDbContextFactory(
             sp.GetRequiredService<IReadOnlyList<Cms.Core.Modules.ModuleDescriptor>>(),
-            sp.GetServices<IInterceptor>()));
+            sp.GetServices<IInterceptor>(),
+            sp.GetService<Cms.Core.Modules.ModuleDescriptorRegistry>()));
         services.AddScoped<TenantDbContextProvider>();
         services.AddScoped<TenantDbContext>(sp => sp.GetRequiredService<TenantDbContextProvider>().Get());
+        services.AddScoped<TenantMigrationRunner>();
         return services;
     }
 

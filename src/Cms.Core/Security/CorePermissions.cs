@@ -18,5 +18,12 @@ public static class CorePermissions
         Description = "Tenant denetim kayitlarini goruntuleme yetkisi",
     };
 
-    public static IReadOnlyList<PermissionDescriptor> All { get; } = new[] { AuditView };
+    public static readonly PermissionDescriptor SoftDeleteManage = new()
+    {
+        Key = "core.softdelete.manage",
+        DisplayName = "Silinmis Kayitlari Yonet",
+        Description = "Soft-delete edilmis kayitlari goruntuleme ve geri yukleme yetkisi",
+    };
+
+    public static IReadOnlyList<PermissionDescriptor> All { get; } = [AuditView, SoftDeleteManage];
 }

@@ -1,0 +1,111 @@
+@using Cms.Web.Areas.Admin.ViewModels
+@model SoftDeleteIndexViewModel
+@{
+    ViewData["Title"] = "Silinmis Kayitlar";
+}
+
+<h1>Silinmis Kayitlar</h1>
+
+<form method="get" asp-action="Index">
+    <fieldset>
+        <legend>Tenant ve Entity</legend>
+        <label for="tenantId">Tenant:</label>
+        <select id="tenantId" name="tenantId">
+            <option value="">— Tenant secin —</option>
+            @foreach (var t in Model.Tenants)
+            {
+                if (Model.SelectedTenantId == t.Id)
+                {
+                    <option value="@t.Id" selected>@t.Slug — @t.DisplayName</option>
+                }
+                else
+                {
+                    <option value="@t.Id">@t.Slug — @t.DisplayName</option>
+                }
+            }
+        </select>
+
+        <label for="entityName">Entity:</label>
+        <select id="entityName" name="entityName">
+            <option value="">— Entity secin —</option>
+            @foreach (var name in Model.EntityTypeOptions)
+            {
+                if (string.Equals(Model.SelectedEntityName, name, StringComparison.Ordinal))
+                {
+                    <option value="@name" selected>@name</option>
+                }
+                else
+                {
+                    <option value="@name">@name</option>
+                }
+            }
+        </select>
+
+        <button type="submit">Goruntule</button>
+    </fieldset>
+</form>
+
+@if (Model.EntityTypeOptions.Count == 0)
+{
+    <p><em>Henuz ISoftDeletable implement eden entity tipi kayit edilmedi. Modul yuklenince burada gozukur.</em></p>
+}
+else if (Model.SelectedTenantId is null || string.IsNullOrWhiteSpace(Model.SelectedEntityName))
+{
+    <p><em>Silinmis kayitlari gormek icin tenant ve entity secin.</em></p>
+}
+else if (Model.Entries.Count == 0)
+{
+    <p><em>Bu tenant ve entity icin silinmis kayit yok.</em></p>
+}
+else
+{
+    <p>Toplam: <strong>@Model.TotalCount</strong> silinmis kayit · Sayfa @Model.Page / @Model.TotalPages</p>
+
+    <table>
+        <thead>
+            <tr>
+                <th>Id</th>
+                <th>Display</th>
+                <th>Silinme</th>
+                <th>Islem</th>
+            </tr>
+        </thead>
+        <tbody>
+        @foreach (var row in Model.Entries)
+        {
+            <tr>
+                <td>@row.EntityId</td>
+                <td>@row.Display</td>
+                <td>@(row.DeletedAt?.ToString("yyyy-MM-dd HH:mm:ss") ?? "—")</td>
+                <td>
+                    <form asp-action="Restore" method="post" style="display:inline;">
+                        @Html.AntiForgeryToken()
+                        <input type="hidden" name="tenantId" value="@Model.SelectedTenantId" />
+                        <input type="hidden" name="entityName" value="@Model.SelectedEntityName" />
+                        <input type="hidden" name="entityId" value="@row.EntityId" />
+                        <button type="submit" onclick="return confirm('Bu kayit geri yuklensin mi?');">Geri Yukle</button>
+                    </form>
+                </td>
+            </tr>
+        }
+        </tbody>
+    </table>
+
+    <nav>
+        @if (Model.HasPrevious)
+        {
+            <a asp-action="Index"
+               asp-route-tenantId="@Model.SelectedTenantId"
+               asp-route-entityName="@Model.SelectedEntityName"
+               asp-route-page="@(Model.Page - 1)">&laquo; Onceki</a>
+        }
+        @if (Model.HasNext)
+        {
+            <span> | </span>
+            <a asp-action="Index"
+               asp-route-tenantId="@Model.SelectedTenantId"
+               asp-route-entityName="@Model.SelectedEntityName"
+               asp-route-page="@(Model.Page + 1)">Sonraki &raquo;</a>
+        }
+    </nav>
+}

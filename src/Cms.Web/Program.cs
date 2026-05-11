@@ -68,6 +68,16 @@ using (var seedScope = app.Services.CreateScope())
 
 if (app.Environment.IsDevelopment())
 {
+    using var migrationScope = app.Services.CreateScope();
+    var runner = migrationScope.ServiceProvider.GetRequiredService<TenantMigrationRunner>();
+    var report = await runner.MigrateAllTenantsAsync();
+    app.Logger.LogInformation(
+        "Tenant migration on startup: {Successful}/{Total} ok, {Failed} failed",
+        report.Successful, report.Total, report.Failed);
+}
+
+if (app.Environment.IsDevelopment())
+{
     await SeedDevAdminAsync(app.Services, app.Configuration);
 }
 else

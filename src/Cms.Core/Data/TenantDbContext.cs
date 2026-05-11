@@ -9,12 +9,22 @@ using Microsoft.EntityFrameworkCore;
 public class TenantDbContext : DbContext
 {
     private readonly IReadOnlyList<ModuleDescriptor> _modules;
+    private readonly ModuleDescriptorRegistry? _registry;
 
     public TenantDbContext(DbContextOptions<TenantDbContext> options, IReadOnlyList<ModuleDescriptor> modules)
+        : this(options, modules, registry: null)
+    {
+    }
+
+    public TenantDbContext(
+        DbContextOptions<TenantDbContext> options,
+        IReadOnlyList<ModuleDescriptor> modules,
+        ModuleDescriptorRegistry? registry)
         : base(options)
     {
         ArgumentNullException.ThrowIfNull(modules);
         _modules = modules;
+        _registry = registry;
         ModuleSetCacheKey = modules.Count == 0
             ? string.Empty
             : string.Join("|", modules.Select(m => m.Manifest.Id).OrderBy(s => s, StringComparer.Ordinal));
@@ -55,5 +65,11 @@ public class TenantDbContext : DbContext
         modelBuilder.ApplySoftDeleteFilters();
 
         base.OnModelCreating(modelBuilder);
+
+        // NOT: ISoftDeletable tip toplama OnModelCreating'de YAPILMAZ — EF Core
+        // model cache'i nedeniyle yalniz ilk cache miss'inde calisirdi (cache key
+        // ayni modul set'i icin sabit, registry instance test bazli degiserdi).
+        // TenantDbContextFactory.Create her cagrida ctx.Model uzerinden registry'ye
+        // populate ediyor; bu konum daha guvenilir.
     }
 }
