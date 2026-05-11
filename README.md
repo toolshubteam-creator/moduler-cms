@@ -6,7 +6,9 @@ Müşteri projelerinde sıfırdan yazmak yerine modüler olarak hızlı kurulan,
 
 ## Durum
 
-🟡 Geliştirme aşamasında — Faz-0 (repo kurulumu).
+🟢 Aktif geliştirme — Faz-3 (Generic CRUD + Audit) tamamlandı. Sıradaki: Faz-4 (Media + SEO + Settings çekirdek modülleri).
+
+Tag'ler: v0.1.0 (Faz-1), v0.2.0 (Faz-2), v0.3.0 (Faz-3).
 
 İlerleme için: [PROGRESS.md](./PROGRESS.md)
 

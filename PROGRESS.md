@@ -3,7 +3,7 @@
 > Bu dosya **canlı** durum dosyasıdır. Her adım sonunda güncellenir.
 > Sade tutuyoruz; detaylı task listesi her fazın açılışında konuşulup üretilir.
 
-**Son güncelleme:** Faz-3.4 (Permission cache + invalidation, D-012 kapatma) — DONE
+**Son güncelleme:** Faz-3.5 (CRUD pattern dokuman + Faz-3 retrospektif) — DONE · **Faz-3 KAPANDI**
 
 ---
 
@@ -14,7 +14,7 @@
 | **Faz-0** | Repo + doküman seti kurulumu | 1 gün | 🟢 DONE |
 | **Faz-1** | Çekirdek temel (IModule, ModuleLoader, Auth) | 2 hafta | 🟢 DONE |
 | **Faz-2** | Multi-tenancy + RBAC | 2 hafta | 🟢 DONE |
-| **Faz-3** | Generic CRUD + Audit | 2 hafta | 🟡 NEXT |
+| **Faz-3** | Generic CRUD + Audit | 2 hafta | 🟢 DONE |
 | **Faz-4** | Media + SEO + Settings (3 çekirdek modül) | 2 hafta | ⚪ TODO |
 | **Faz-5** | Blog modülü (full, referans modül) | 2 hafta | ⚪ TODO |
 | **Faz-6** | Event Bus + Notification | 2 hafta | ⚪ TODO |
@@ -25,7 +25,7 @@
 
 ---
 
-## Aktif Faz: Faz-3 — Generic CRUD + Audit
+## Aktif Faz: Faz-3 — Generic CRUD + Audit ✓ KAPANDI
 
 **Hedef:** Modul yazimi icin generic CRUD scaffold + audit log (kim, ne zaman, neyi degistirdi). Faz-2'de hazirlanan tenant + RBAC altyapisi uzerine kurulacak. Faz-3 detayi 3.1 baslangicinda konusulacak.
 
@@ -56,12 +56,13 @@
 | 3.2 | Audit log okuma + admin UI (read-only) | 🟢 DONE |
 | 3.3 | Soft delete restore akisi + admin UI | 🟢 DONE |
 | 3.4 | Permission cache + invalidation (D-012) | 🟢 DONE |
-| 3.5 | CRUD pattern referans dokumani + retrospektif | ⚪ TODO |
+| 3.5 | CRUD pattern referans dokumani + retrospektif | 🟢 DONE |
 
 ---
 
 ## Yapılanlar (kronolojik, en yeni üstte)
 
+- **Faz-3.5** (tag: `v0.3.0`): Faz-3 kapanis — `docs/MODULE_CRUD_PATTERN.md` (modul yazari perspektifinden Faz-3 altyapisi kullanim kilavuzu: entity marker'lari, migration, controller, permission konvansiyonu, dokunma listesi, restore davranisi) + `docs/FAZ-3-RETROSPECTIVE.md` (hedef vs gerceklesen, 5 alt-adim ozeti, tasarim kararlari geri bakis, beklenmedik bulgular [model cache, route collision, EF auto-create, FindAsync, sealed PermissionService, async post-eviction], ertelemeler [D-017/D-018/D-012 kapandi, D-019 dogdu, D-002 Faz-6'ya kaydi], Faz-4 devir notlari, olculer). README.md durum: Faz-0 -> Faz-3 tamamlandi. v0.3.0 annotated tag.
 - **Faz-3.4** (commit: `e5af2e2`): D-012 KAPATILDI — IPermissionCacheInvalidator + MemoryPermissionCacheInvalidator (singleton, shadow index ConcurrentDictionary<string, byte> wildcard remove icin, KeyPrefix "cms:perm:", IServiceScopeFactory ile InvalidateRoleAsync scoped MasterDbContext.Sys_UserRoles join). CachedPermissionService (IPermissionService decorator, FrozenSet<string> 5dk sliding TTL, RegisterPostEvictionCallback shadow index temizleme, Debug log HIT/MISS). AddCmsAuthorization DI chain: AddMemoryCache + MemoryPermissionCacheInvalidator singleton + IPermissionCacheInvalidator facade + PermissionService concrete scoped + IPermissionService factory delegate (recursive resolve bypass). PermissionSeeder constructor 4. parametre IPermissionCacheInvalidator; ReconcileAsync sonu InvalidateAll. 8 yeni test (5 CachedPermissionService + 2 MemoryPermissionCacheInvalidator + 1 PermissionSeederTests). Toplam 124 test yesil. **FIX-01:** PermissionService sealed -> test'te inherit edilemedi (CountingPermissionService basarisiz); CachedPermissionService ctor PermissionService -> IPermissionService gevsetildi, DI factory delegate ile recursive resolve bypass. **FIX-02:** MemoryCache post-eviction callback async (Task.Factory.StartNew) — test sync flaky; polling loop (Task.Delay 20ms, 2s deadline) ile cozuldu, prod'da gorunmez. **FIX-03:** Serilog ReadFrom.Configuration "Logging" section'i okumuyor — manuel log dogrulama icin Serilog:MinimumLevel:Override ile namespace Debug'a ayarlandi, dogrulama sonrasi geri cekildi. **NOT:** Mevcut admin route'lar (Tenants/Audit/SoftDelete) SystemRole policy kullaniyor, [HasPermission] attribute hicbir route'a bagli degil — IPermissionService.HasPermissionAsync runtime'da cagrilmiyor, CachedPermissionService production'da dormant. Faz-5'te Blog modulu [HasPermission] kullanmaya basladiginda canli HIT/MISS log'lari gorulecek; infrastructure katmani 5 test (call count assertion) + startup InvalidateAll log'u ile yapisal olarak dogrulandi.
 - **Faz-3.3** (commit: `4890e18`): D-018 KAPATILDI — TenantMigrationRunner (Cms.Core/Data, sequential MigrateAsync tum aktif tenant'lar, try/catch tek fail digerlerini durdurmaz, TenantMigrationReport(Successful/Failed/Total)) + Program.cs app start auto-migrate (IsDevelopment only, LoadCmsModulesAsync + PermissionSeeder sonrasi) + TenantsController.MigrateAll POST action (antiforgery, TempData success/error) + Tenants/Index.cshtml "Tum Tenant'lari Migrate Et" butonu (confirm dialog). AuditAction.Restore detection Faz-3.1'de zaten dogru yazilmis (ISoftDeletable IsDeleted true->false transition Classify metodunda yakalaniyor) — kod degisikligi gerekmedi, AuditRestoreDetectionTests ile dogrulandi (Create -> Delete -> Restore action sirali yazildi). ModuleDescriptorRegistry.GetSoftDeletableEntityTypes (ConcurrentDictionary<Type, byte> backing, snapshot getter, internal RegisterSoftDeletableTypes); populate TenantDbContextFactory.Create cross-cut'a tasindi (her Create'te ctx.Model uzerinden ISoftDeletable tipleri idempotent registry'e eklenir — OnModelCreating EF Core model cache nedeniyle bir kez calisip atlamasini bypass eder). Areas/Admin/SoftDeleteController (Authorize SystemRole; Index tenantId+entityName+page; Restore POST antiforgery; generic helpers QueryDeletedTypedAsync<T>+RestoreTypedAsync<T> with Expression.Lambda PK predicate + IgnoreQueryFilters; PK convert Guid/int/long+ChangeType fallback). SoftDeleteIndexViewModel + DeletedEntityRow record + Index.cshtml (tenant+entity dropdowns, deleted row table, per-row restore form, pagination, empty-state). CorePermissions.SoftDeleteManage (core.softdelete.manage) eklendi, PermissionSeeder otomatik seed. _AdminLayout 3 link (Tenant'lar | Audit Log | Silinmis Kayitlar). 8 yeni test (2 migration + 1 restore detection + 3 controller + 2 registry); toplam 116 test yesil. **FIX-01:** EF Core MigrateAsync non-existent DB'yi otomatik yaratti (IRelationalDatabaseCreator.CreateAsync) — fail test icin bad credentials kullanildi. **FIX-02:** SqlQueryRaw<int> SELECT COUNT(*) subquery wrap'i bozdu (AS s LIMIT 1 syntax err); direct DbConnection.ExecuteScalarAsync. **FIX-03:** ConcurrentDictionary.Keys ICollection<T> donduruyor, IReadOnlyCollection<T> gerekiyordu — [.. _softDeletableTypes.Keys] snapshot. **FIX-04:** OnModelCreating populate test class'lari arasi flaky (model cache hit -> registry bos) — populate TenantDbContextFactory.Create cross-cut'a tasindi. **FIX-05:** ctx.FindAsync soft-deleted entity'yi bulamadi (EF 9 query filter respect belirsiz) — Expression PK predicate + IgnoreQueryFilters generic helper. **NOT:** Manuel UI'da acme tenant'in Faz-2.4 oncesi bozuk conn string'i fail oldu (TenantMigrationReport 2/3 ok, 1 failed); D-018 tasariminin tam istedigi davranis (digerlerini durdurmadi). Fail nedeni admin UI'da gorunmuyor (sadece log'da) — D-019 olarak Faz-7'ye kaydedildi.
 - **Faz-3.2** (commit: `477aaf2`): D-017 KAPATILDI — AuditSaveChangesInterceptor transaction-aware refactor: ConditionalWeakTable<DbContext, AuditContextState> (PendingAudits + OwnedTransaction tek nesnede); SavingChanges{Async} sonrasi BeginOwnedTransactionIfNeeded (CurrentTransaction yoksa + pending varsa BeginTransaction); SavedChanges{Async} sonrasi FlushPending + CommitOwnedTransaction; SaveChangesFailed{Async} override AbortOwnedTransaction (rollback + state cleanup). 3 transaction testi: forced fail rollback (DROP TABLE Audit_Entries + DbUpdateException, main entity yok); outer transaction nested no-op (caller BeginTransaction + Rollback, hem main hem audit geri alindi); happy path commit. Areas/Admin/AuditController (Index, Authorize SystemRole, [FromQuery(Name="act")] auditAction route token collision fix); AuditIndexViewModel + AuditFilterViewModel + TenantOption record; Index.cshtml tenant dropdown + filtre fieldset + audit tablosu + <details>/<summary> JSON expand + prev/next pagination. CorePermissions sabit (ModuleId="core" rezerve, AuditView "core.audit.view"). PermissionSeeder.ReconcileAsync core permission'larini once seed eder, "core" prefix bypass valid; modul id "core" rezerve (warning + skip). _AdminLayout'a Audit Log nav link. 8 yeni test (3 transaction + 5 controller); toplam 108 test yesil. **FIX-01:** Route token collision — `action` parametre adi ASP.NET Core default route token'i ile cakisti (route value "Index" query "Update" onunde, AuditAction binmedi). [FromQuery(Name="act")] + view name="act" + asp-route-act ile fix. Manuel cURL testinde yakalandi. **NOT:** Faz-3.1'de yaratilan Audit_Entries migration mevcut tenant'lara (acme, browsertest) uygulanmadi — yeni provision edilen audittest tenant'inda dogrulandi. Mevcut tenant migration apply gap'i D-018 olarak Faz-3.3'e kaydedildi.
@@ -81,14 +82,14 @@
 
 ## Sıradaki
 
-- **Faz-3.5:** CRUD pattern referans dokumani + Faz-3 retrospektif.
+- **Faz-4.1:** Media + SEO + Settings cekirdek modulleri — plan tartismasi yeni konusmada baslayacak. Faz-4 detayli alt-adimlari 4.1 acilisinda konusulup uretilecek.
 
 ---
 
 ## Sürüm ve Etiketler
 
 > Her faz tamamlandığında git tag'i atılır: `v0.1.0` (Faz-1 sonu), `v0.2.0` (Faz-2 sonu)…
-> **v0.1.0** atildi (Faz-1 sonu). **v0.2.0** atildi (Faz-2 sonu). Sonraki: v0.3.0 (Faz-3 sonu).
+> **v0.1.0** atildi (Faz-1 sonu). **v0.2.0** atildi (Faz-2 sonu). **v0.3.0** atildi (Faz-3 sonu). Sonraki: v0.4.0 (Faz-4 sonu).
 
 ---
 

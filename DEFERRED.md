@@ -4,7 +4,7 @@
 > Geçmiş kayıt değil — gelecek-bakışlı.
 > Her adım başında okunur, sonunda güncellenir.
 
-**Son güncelleme:** Faz-3.4 — D-012 kapatildi (PROGRESS Faz-3.4'e tasindi). Yeni erteleme yok.
+**Son güncelleme:** Faz-3.5 — Faz-3 kapandi, erteleme tablosunda degisiklik yok.
 
 ---
 
