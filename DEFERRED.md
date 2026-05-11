@@ -4,7 +4,7 @@
 > Geçmiş kayıt değil — gelecek-bakışlı.
 > Her adım başında okunur, sonunda güncellenir.
 
-**Son güncelleme:** Faz-2.4b — D-016 (production tenant DB provisioning credentials, Faz-7 tetigi) eklendi.
+**Son güncelleme:** Faz-3.1 — D-017 (audit transactional integrity, Faz-3.2 tetigi) eklendi.
 
 ---
 
@@ -90,6 +90,11 @@ ID formatı: `D-001`, `D-002`... (sıralı, silinince ID tekrar kullanılmaz)
 **Tetik:** Linux CI/CD eklendiginde (Faz-7 production hardening) — Linux runner'da reverse-DNS sorunu yok, test direkt yesil donecek.
 **Eklenme:** Faz-1.5
 
+### D-017 — Audit kayit transactional integrity
+**Bağlam:** Faz-3.1'de AuditSaveChangesInterceptor 2-fazli yazim kullaniyor — main entity save (SavingChangesAsync sirasinda snapshot, SavedChangesAsync sirasinda PK populate) ardindan ayri ikinci SaveChangesAsync ile audit row insert. Bu pencere main commit basarili + audit insert fail durumunda entity guncel kalir ama denetim izi yoktur. Cozum: AuditSaveChangesInterceptor SavingChanges'te `Database.BeginTransactionAsync()` ile transaction ac, SavedChanges'te audit insert + commit; nested transaction (caller zaten transaction acmissa) icin `Database.CurrentTransaction` kontrolu ile no-op. Test: forced audit insert fail (FakeAuditEntry CHECK constraint violation veya disconnect simulation) -> main entity rollback dogrulamasi.
+**Tetik:** Faz-3.2 basi (Audit UI'dan once integrity saglanmali)
+**Eklenme:** Faz-3.1
+
 ---
 
 ## Faz Bazlı Tetik Tablosu
@@ -98,7 +103,7 @@ ID formatı: `D-001`, `D-002`... (sıralı, silinince ID tekrar kullanılmaz)
 |---|---|
 | Faz-1 | 0 |
 | Faz-2 | 0 |
-| Faz-3 | 2 (D-002 alternatif Faz-6, D-012) |
+| Faz-3 | 3 (D-002 alternatif Faz-6, D-012, D-017) |
 | Faz-4 | 0 |
 | Faz-5 | 1 (D-014) |
 | Faz-6 | 0 |
@@ -107,7 +112,7 @@ ID formatı: `D-001`, `D-002`... (sıralı, silinince ID tekrar kullanılmaz)
 | v2 | 1 (D-004) |
 | Tetik: test suresi 15dk | 1 (D-015) |
 
-**Toplam aktif:** 13
+**Toplam aktif:** 14
 
 ---
 

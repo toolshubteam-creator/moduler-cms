@@ -3,7 +3,7 @@
 > Bu dosya **canlı** durum dosyasıdır. Her adım sonunda güncellenir.
 > Sade tutuyoruz; detaylı task listesi her fazın açılışında konuşulup üretilir.
 
-**Son güncelleme:** Faz-2.4 (Tenant CRUD + admin UI) — DONE · **Faz-2 KAPANDI**
+**Son güncelleme:** Faz-3.1 (Audit + soft-delete interceptor altyapisi) — DONE
 
 ---
 
@@ -48,10 +48,21 @@
 | 2.3 | RBAC: Permission system + [HasPermission] | 🟢 DONE |
 | 2.4 | Tenant CRUD + admin UI | 🟢 DONE |
 
+### Faz-3 Adımları
+
+| Adım | Başlık | Durum |
+|---|---|---|
+| 3.1 | Base entity contracts + EF interceptor altyapisi | 🟢 DONE |
+| 3.2 | Audit log okuma + admin UI (read-only) | ⚪ TODO |
+| 3.3 | Soft delete restore akisi + admin UI | ⚪ TODO |
+| 3.4 | Permission cache + invalidation (D-012) | ⚪ TODO |
+| 3.5 | CRUD pattern referans dokumani + retrospektif | ⚪ TODO |
+
 ---
 
 ## Yapılanlar (kronolojik, en yeni üstte)
 
+- **Faz-3.1** (commit: `72f3322`): IAuditable + ISoftDeletable contract'lari (Cms.Core/Domain/Auditing) + AuditAction enum + AuditIgnoreAttribute + AuditEntry entity (tenant DB, Audit_ prefix, MySQL native JSON column for Changes) + AuditSaveChangesInterceptor (2-fazli: SavingChanges snapshot, SavedChanges PK populate + ayri SaveChanges; ConditionalWeakTable<DbContext, List<PendingAudit>> per-context state; ConcurrentDictionary reflection cache) + SoftDeleteInterceptor (Deleted->Modified+IsDeleted=true+DeletedAt=UtcNow) + ICurrentUserService (Cms.Core contract) + HttpCurrentUserService (Cms.Web impl, ClaimTypes.NameIdentifier int.TryParse) + SoftDeleteModelBuilderExtensions.ApplySoftDeleteFilters (reflection ile HasQueryFilter otomatik bagli) + AddCmsCurrentUser DI extension. TenantDbContextFactory ikinci ctor IEnumerable<IInterceptor>; ReplaceService<IModelCacheKeyFactory, TenantDbContextModelCacheKeyFactory>() — modul setine duyarli model cache (test isolation + Faz-5 dinamik modul hazirligi). AddAuditEntries migration. 21 yeni test (HttpCurrentUserService 6 + SoftDeleteInterceptor 3 + AuditInterceptor 6 + diger). Toplam 100 test yesil. **FIX-01:** EF Core model cache TenantDbContext tipini modul setinden bagimsiz paylasiyordu; TenantDbContextModelCacheKeyFactory eklendi (ModuleSetCacheKey = sirali modul id join'i anahtara dahil). **FIX-02:** Plan'daki "entry.Entity is AuditEntry" self-reference filter CS8121 (AuditEntry IAuditable degil); statik tip garantisi nedeniyle filter kaldirildi. **NOT:** Audit row main entity save'inden ayri SaveChanges ile yaziliyor — partial-failure penceresi acik; D-017 olarak Faz-3.2 basinda transaction wrapping ile kapanacak.
 - **Faz-2.4** (commits: `ff84bb8` 2.4a refactor, `1d236a7` 2.4b feat, `4431871` 2.4c feat): Composition root rework — `AddCmsModuleSystem` (DI registrations) + `LoadCmsModulesAsync(IHost)` (post-build) + `ModuleDescriptorRegistry` mutable holder; `BuildServiceProvider()` anti-pattern kaldirildi (D-005 kapatildi). `TenantProvisioningService` (DB lifecycle: CREATE DATABASE + migration + orphan DROP cleanup; SlugValidator regex + reserved listesi + case-insensitive normalize). Areas/Admin/TenantsController (Index/Create/Deactivate) + 3 Razor view (_AdminLayout + Tenants/Index + Create) + CreateTenantViewModel + SystemRole policy/handler/requirement. Toplam 30 yeni test (24 SlugValidator+Provisioning + 6 TenantsController). **FIX-01 (2.4a):** test parallelization deferred D-015 olarak kayit. **FIX-02 (2.4b):** Plan'in ic tutarsizligi (ACME slug invalid bekleniyordu ama validator ToLowerInvariant ile normalize ediyor) — InlineData duzeltildi. **FIX-03 (2.4c manuel UI):** SystemRole policy fail oldu cunku Faz-1.5 dev seed Sys_UserRoles atamasini composite-PK bug'inda kaybetmisti; admin user'a Admin role'u manuel SQL ile atandi. Toplam 85 test yesil. **Manuel UI dogrulamasi browser ile tamamlandi**: login -> create tenant `browsertest` -> MySQL'de `cms_tenant_browsertest` DB olustu + InitialTenant migration uygulandi -> deactivate -> includeInactive filter calisti -> logout. **Faz-2 KAPANDI.**
 - **Faz-2.3** (commit: `959d99a`): IPermissionService + PermissionService (SuperAdmin bypass: IsSystem=true rolu kontrolu atlar; tenant-scoped query: TenantId match veya null = global rol) + HasPermissionAttribute (AuthorizeAttribute miras, "perm:&lt;key&gt;" policy adi) + HasPermissionRequirement + HasPermissionHandler (ITenantContext'ten tenant id, ClaimTypes.NameIdentifier'dan userId) + HasPermissionPolicyProvider (DefaultAuthorizationPolicyProvider fallback ile dinamik on-demand policy uretimi) + PermissionSeeder (idempotent reconcile: yoksa ekler, varsa DisplayName/Description gunceller, ORPHAN PERMISSION'LARI SILMEZ; modul prefix validation) + AddCmsAuthorization DI extension + Cms.Web startup'ta seeder.ReconcileAsync(). 13 yeni test (6 PermissionService + 4 PermissionSeeder + 3 HasPermissionHandler unit). Toplam 56 test yesil.
 - **Faz-2.2** (commits: `15b95c0` 2.2a refactor, `27b38e6` 2.2b feat): MySqlContainerFixture (tek container, izole DB per test, paylasilan ICollectionFixture, **5.4x test hizlanma** — 11dk -> 2dk) + TenantDbContext (modul entity'leri runtime kayit, IHasEntities.RegisterEntities cagrilir, cekirdek DbSet yok) + TenantDbContextFactory (singleton, dinamik conn string) + TenantDbContextProvider (scoped, ITenantContext'ten conn string al, lazy create, tenant resolution sart) + AddCmsTenantData DI extension + Master/Tenant migration klasor ayrimi (Data/Migrations/Master, Data/Migrations/Tenant) + InitialTenant migration (bos schema + EFMigrationsHistory) + IDesignTimeDbContextFactory&lt;TenantDbContext&gt; (dotnet ef komutlari icin) + 4 yeni test (2 factory unit + 2 TenantDbContext integration). **FIX-01 (2.2a):** EF Migrations advisory lock formati `__<dbname>_EFMigrationsLock` 64 char sinirini geciyordu (test_<prefix>_<guid32> 46 char + lock overhead 21 char = 67 > 64). DB adi `t_<prefix>_<guid16>` formatina indirilip 40 char ile sinirlandi. Toplam 43 test yesil.
@@ -67,7 +78,7 @@
 
 ## Sıradaki
 
-- **Faz-3.1+:** Generic CRUD scaffold (modul-agnostic CRUD pattern) + audit log altyapisi. Faz-3 detayli plani 3.1 baslangicinda konusulacak.
+- **Faz-3.2:** Audit log read admin UI + D-017 transaction wrapping fix (Faz-3.1'den dogan integrity gap).
 
 ---
 
