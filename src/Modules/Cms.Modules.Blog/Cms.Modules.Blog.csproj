@@ -1,0 +1,23 @@
+<Project Sdk="Microsoft.NET.Sdk.Razor">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <AddRazorSupportForMvc>true</AddRazorSupportForMvc>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+    <ProjectReference Include="..\..\Cms.Abstractions\Cms.Abstractions.csproj" />
+    <ProjectReference Include="..\..\Cms.Core\Cms.Core.csproj" />
+    <ProjectReference Include="..\Cms.Modules.Blog.Contracts\Cms.Modules.Blog.Contracts.csproj" />
+    <ProjectReference Include="..\Cms.Modules.Media.Contracts\Cms.Modules.Media.Contracts.csproj" />
+    <ProjectReference Include="..\Cms.Modules.Seo.Contracts\Cms.Modules.Seo.Contracts.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.EntityFrameworkCore" />
+  </ItemGroup>
+
+</Project>

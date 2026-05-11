@@ -1,0 +1,85 @@
+@model PostFormModel
+@{
+    ViewData["Title"] = "Yeni Post";
+    var mediaList = (IReadOnlyList<MediaFile>?)ViewData["MediaList"] ?? [];
+}
+
+<h1>Yeni Post</h1>
+
+<form asp-action="Create" method="post">
+    @Html.AntiForgeryToken()
+
+    <fieldset>
+        <legend>Icerik</legend>
+        <label>Title:
+            <input type="text" name="Title" value="@Model.Title" maxlength="200" required />
+        </label>
+        <label>Slug (bos birakirsan Title'dan uretilir):
+            <input type="text" name="Slug" value="@Model.Slug" maxlength="200" />
+        </label>
+        <label>Excerpt:
+            <textarea name="Excerpt" maxlength="500" rows="2">@Model.Excerpt</textarea>
+        </label>
+        <label>Content:
+            <textarea name="Content" rows="8" required>@Model.Content</textarea>
+        </label>
+        <label>Status:
+            <select name="Status">
+                @foreach (var s in Enum.GetValues<PostStatus>())
+                {
+                    if (Model.Status == s)
+                    {
+                        <option value="@s" selected>@s</option>
+                    }
+                    else
+                    {
+                        <option value="@s">@s</option>
+                    }
+                }
+            </select>
+        </label>
+        <label>Publish At (UTC, opsiyonel — Faz-6 Hangfire ile yorumlanacak):
+            <input type="datetime-local" name="PublishAt" value="@(Model.PublishAt?.ToString("yyyy-MM-ddTHH:mm"))" />
+        </label>
+        <label>Featured Media:
+            <select name="FeaturedMediaId">
+                <option value="">(secim yok)</option>
+                @foreach (var m in mediaList)
+                {
+                    if (Model.FeaturedMediaId == m.Id)
+                    {
+                        <option value="@m.Id" selected>#@m.Id — @m.FileName (@m.MimeType)</option>
+                    }
+                    else
+                    {
+                        <option value="@m.Id">#@m.Id — @m.FileName (@m.MimeType)</option>
+                    }
+                }
+            </select>
+        </label>
+    </fieldset>
+
+    <details>
+        <summary>SEO Meta (opsiyonel, inline)</summary>
+        <fieldset>
+            <label>SEO Title:
+                <input type="text" name="SeoTitle" value="@Model.SeoTitle" maxlength="200" />
+            </label>
+            <label>SEO Description:
+                <textarea name="SeoDescription" maxlength="500" rows="2">@Model.SeoDescription</textarea>
+            </label>
+            <label>OG Image URL:
+                <input type="text" name="SeoOgImage" value="@Model.SeoOgImage" maxlength="500" />
+            </label>
+            <label>Canonical URL:
+                <input type="text" name="SeoCanonical" value="@Model.SeoCanonical" maxlength="500" />
+            </label>
+            <label>Robots:
+                <input type="text" name="SeoRobots" value="@Model.SeoRobots" maxlength="100" placeholder="index, follow" />
+            </label>
+        </fieldset>
+    </details>
+
+    <button type="submit">Olustur</button>
+    <a asp-action="Index">Iptal</a>
+</form>
