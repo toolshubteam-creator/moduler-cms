@@ -4,7 +4,7 @@
 > Geçmiş kayıt değil — gelecek-bakışlı.
 > Her adım başında okunur, sonunda güncellenir.
 
-**Son güncelleme:** Faz-5.1 — yeni erteleme acilmadi, kapanmadi. Aktif sayisi 12.
+**Son güncelleme:** Faz-5.2 — yeni erteleme acilmadi, kapanmadi. Aktif sayisi 12.
 
 ---
 
