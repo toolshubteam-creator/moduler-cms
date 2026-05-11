@@ -25,6 +25,8 @@
     <ProjectReference Include="..\..\src\Cms.Core\Cms.Core.csproj" />
     <ProjectReference Include="..\..\src\Cms.Abstractions\Cms.Abstractions.csproj" />
     <ProjectReference Include="..\..\src\Cms.Web\Cms.Web.csproj" />
+    <ProjectReference Include="..\..\src\Modules\Cms.Modules.Settings.Contracts\Cms.Modules.Settings.Contracts.csproj" />
+    <ProjectReference Include="..\..\src\Modules\Cms.Modules.Settings\Cms.Modules.Settings.csproj" />
   </ItemGroup>
 
   <ItemGroup>

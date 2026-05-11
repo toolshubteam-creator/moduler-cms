@@ -1,0 +1,31 @@
+<Project>
+
+  <!--
+    src/Modules/ altindaki tum modul projeleri build sonrasi cikti DLL'lerini +
+    deps.json + tum dependency assembly'lerini Cms.Web/bin/<Config>/<Tfm>/Modules/
+    altina kopyalar (flat layout). Cms.Web build'i sirasinda runtime'da ModuleLoader
+    bu klasoru tarayip IModule implementasyonlarini bulur. AssemblyDependencyResolver
+    deps.json uzerinden bagimliliklari (orn. Cms.Modules.Settings.Contracts) yan yana
+    cozer. Contracts projeleri kendi basina IModule implement etmedigi icin
+    ModuleLoader tarafindan otomatik atlanir.
+
+    CLAUDE.md Kural 2: Cms.Web → Cms.Modules.* ProjectReference YASAK; bu nedenle
+    modul ciktilari runtime'da DLL olarak yuklenir.
+  -->
+  <Target Name="CopyModuleArtifactsToWebHost" AfterTargets="Build">
+    <ItemGroup>
+      <_ModuleOutputs Include="$(TargetDir)*.dll" />
+      <_ModuleOutputs Include="$(TargetDir)*.deps.json" />
+    </ItemGroup>
+    <PropertyGroup>
+      <_WebModulesDir>$(MSBuildThisFileDirectory)..\Cms.Web\bin\$(Configuration)\$(TargetFramework)\Modules\</_WebModulesDir>
+    </PropertyGroup>
+    <MakeDir Directories="$(_WebModulesDir)" />
+    <Copy SourceFiles="@(_ModuleOutputs)"
+          DestinationFolder="$(_WebModulesDir)"
+          SkipUnchangedFiles="true" />
+    <Message Importance="High"
+             Text="Module artifacts copied: $(MSBuildProjectName) (@(_ModuleOutputs->Count()) files) -> $(_WebModulesDir)" />
+  </Target>
+
+</Project>

@@ -1,33 +1,88 @@
 namespace Cms.Core.Modules;
 
 using Cms.Abstractions.Modules;
+using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Routing;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Logging.Abstractions;
+using Microsoft.Extensions.Options;
 
 public static class ModuleHostExtensions
 {
+    /// <summary>
+    /// Modul altyapi servislerini DI'ye kayit eder (IModuleLoader, ModuleLoaderOptions,
+    /// ModuleDescriptorRegistry placeholder). Modul DLL'lerini YUKLEMEZ — yukleme
+    /// <see cref="UseCmsModules"/> ile build oncesi yapilir.
+    /// </summary>
     public static IServiceCollection AddCmsModuleSystem(
         this IServiceCollection services,
         IConfiguration configuration)
     {
         services.Configure<ModuleLoaderOptions>(configuration.GetSection(ModuleLoaderOptions.SectionName));
         services.AddSingleton<IModuleLoader, ModuleLoader>();
+        // UseCmsModules cagrilmazsa registry bos kalir — backwards compat / test senaryolari icin.
         services.AddSingleton<ModuleDescriptorRegistry>();
         services.AddSingleton<IReadOnlyList<ModuleDescriptor>>(sp =>
             sp.GetRequiredService<ModuleDescriptorRegistry>().Modules);
         return services;
     }
 
+    /// <summary>
+    /// Modul DLL'lerini Cms.Web'in <c>Modules/</c> klasorunden kesfedip yukler ve her modulun
+    /// <see cref="IModule.RegisterServices"/> metodunu DI build oncesi cagirir (D-014 cozumu).
+    /// Modul assembly'leri MVC <see cref="Microsoft.AspNetCore.Mvc.ApplicationParts.ApplicationPart"/>
+    /// olarak eklenir; controller/view discovery devreye girer.
+    /// </summary>
+    public static WebApplicationBuilder UseCmsModules(this WebApplicationBuilder builder)
+    {
+        builder.Services.AddCmsModuleSystem(builder.Configuration);
+
+        var loaderOptions = new ModuleLoaderOptions();
+        builder.Configuration.GetSection(ModuleLoaderOptions.SectionName).Bind(loaderOptions);
+
+        var loader = new ModuleLoader(Options.Create(loaderOptions), NullLogger<ModuleLoader>.Instance);
+        var modules = loader.LoadAll();
+
+        foreach (var m in modules)
+        {
+            m.Instance.RegisterServices(builder.Services, builder.Configuration);
+        }
+
+        var mvcBuilder = builder.Services.AddControllersWithViews();
+        foreach (var m in modules)
+        {
+            mvcBuilder.AddApplicationPart(m.Assembly);
+        }
+
+        // Pre-populated registry singleton override — AddCmsModuleSystem'in placeholder'ini kapatir.
+        var registry = new ModuleDescriptorRegistry();
+        registry.Set(modules);
+        builder.Services.AddSingleton(registry);
+        builder.Services.AddSingleton<IReadOnlyList<ModuleDescriptor>>(modules);
+
+        return builder;
+    }
+
+    /// <summary>
+    /// Legacy: build-sonrasi yukleme. <see cref="UseCmsModules"/> kullanilmazsa
+    /// fallback olarak modulleri discover edip registry'ye yazar. UseCmsModules ile
+    /// birlikte cagrildiginda registry zaten dolu — tekrar overwrite olmasin diye
+    /// bu metodu artik Program.cs cagirmiyor; tutuluyor ki backwards-compat testler kirilmasin.
+    /// </summary>
     public static Task<IReadOnlyList<ModuleDescriptor>> LoadCmsModulesAsync(this IHost host)
     {
         var loader = host.Services.GetRequiredService<IModuleLoader>();
         var registry = host.Services.GetRequiredService<ModuleDescriptorRegistry>();
 
+        if (registry.Modules.Count > 0)
+        {
+            return Task.FromResult(registry.Modules);
+        }
+
         var modules = loader.LoadAll();
         registry.Set(modules);
-
         return Task.FromResult(modules);
     }
 

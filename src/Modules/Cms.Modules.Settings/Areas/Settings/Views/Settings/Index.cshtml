@@ -1,0 +1,69 @@
+@model IReadOnlyList<SettingEntry>
+@{
+    ViewData["Title"] = "Settings";
+}
+
+<h1>Settings</h1>
+
+@if (TempData["SuccessMessage"] is string ok)
+{
+    <div role="alert" style="color:green;">@ok</div>
+}
+@if (TempData["ErrorMessage"] is string err)
+{
+    <div role="alert" style="color:red;">@err</div>
+}
+
+<h2>Yeni / Guncelle</h2>
+<form asp-action="Edit" method="post">
+    @Html.AntiForgeryToken()
+    <label>Key: <input type="text" name="key" maxlength="200" required /></label>
+    <label>Tip:
+        <select name="valueType">
+            @foreach (var t in Enum.GetValues<SettingValueType>())
+            {
+                <option value="@t">@t</option>
+            }
+        </select>
+    </label>
+    <label>Deger: <input type="text" name="value" required /></label>
+    <button type="submit">Kaydet</button>
+</form>
+
+<h2>Mevcut Kayitlar</h2>
+@if (Model.Count == 0)
+{
+    <p><em>Henuz setting yok.</em></p>
+}
+else
+{
+    <table>
+        <thead>
+            <tr>
+                <th>Key</th>
+                <th>Value</th>
+                <th>Tip</th>
+                <th>Guncelleme</th>
+                <th>Islem</th>
+            </tr>
+        </thead>
+        <tbody>
+        @foreach (var s in Model)
+        {
+            <tr>
+                <td>@s.Key</td>
+                <td>@s.Value</td>
+                <td>@s.ValueType</td>
+                <td>@s.UpdatedAt.ToString("yyyy-MM-dd HH:mm:ss")</td>
+                <td>
+                    <form asp-action="Delete" method="post" style="display:inline;">
+                        @Html.AntiForgeryToken()
+                        <input type="hidden" name="key" value="@s.Key" />
+                        <button type="submit" onclick="return confirm('Silinsin mi?');">Sil</button>
+                    </form>
+                </td>
+            </tr>
+        }
+        </tbody>
+    </table>
+}

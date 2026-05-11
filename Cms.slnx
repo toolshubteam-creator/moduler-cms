@@ -4,6 +4,10 @@
     <Project Path="src/Cms.Core/Cms.Core.csproj" />
     <Project Path="src/Cms.Web/Cms.Web.csproj" />
   </Folder>
+  <Folder Name="/src/Modules/">
+    <Project Path="src/Modules/Cms.Modules.Settings.Contracts/Cms.Modules.Settings.Contracts.csproj" />
+    <Project Path="src/Modules/Cms.Modules.Settings/Cms.Modules.Settings.csproj" />
+  </Folder>
   <Folder Name="/tests/">
     <Project Path="tests/Cms.Tests.FakeModule/Cms.Tests.FakeModule.csproj" />
     <Project Path="tests/Cms.Tests/Cms.Tests.csproj" />
