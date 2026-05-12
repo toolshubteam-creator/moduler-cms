@@ -1,6 +1,8 @@
 @model IReadOnlyList<PostDto>
 @{
     ViewData["Title"] = "Blog Posts";
+    var currentPage = (int)(ViewData["CurrentPage"] ?? 1);
+    var hasMore     = (bool)(ViewData["HasMore"] ?? false);
 }
 
 <h1>Blog Posts</h1>
@@ -71,4 +73,18 @@ else
         }
         </tbody>
     </table>
+
+    <nav aria-label="Sayfalama">
+        <ul style="list-style:none; padding:0; display:flex; gap:0.5rem;">
+            @if (currentPage > 1)
+            {
+                <li><a asp-action="Index" asp-route-page="@(currentPage - 1)">Onceki</a></li>
+            }
+            <li><strong>Sayfa @currentPage</strong></li>
+            @if (hasMore)
+            {
+                <li><a asp-action="Index" asp-route-page="@(currentPage + 1)">Sonraki</a></li>
+            }
+        </ul>
+    </nav>
 }

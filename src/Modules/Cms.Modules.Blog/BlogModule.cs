@@ -23,8 +23,9 @@ public sealed class BlogModule : ModuleBase
         IsCorePlugin = false,
         Dependencies =
         [
-            new ModuleDependency { ModuleId = "media", VersionRange = VersionRange.Parse("[1.0.0,2.0.0)") },
-            new ModuleDependency { ModuleId = "seo",   VersionRange = VersionRange.Parse("[1.0.0,2.0.0)") },
+            new ModuleDependency { ModuleId = "media",    VersionRange = VersionRange.Parse("[1.0.0,2.0.0)") },
+            new ModuleDependency { ModuleId = "seo",      VersionRange = VersionRange.Parse("[1.0.0,2.0.0)") },
+            new ModuleDependency { ModuleId = "settings", VersionRange = VersionRange.Parse("[1.0.0,2.0.0)") },
         ],
     };
 
@@ -33,6 +34,7 @@ public sealed class BlogModule : ModuleBase
         services.AddScoped<IPostService, PostService>();
         services.AddScoped<ICategoryService, CategoryService>();
         services.AddScoped<ITagService, TagService>();
+        services.AddScoped<IBlogSettingsReader, BlogSettingsReader>();
     }
 
     public override void RegisterEntities(ModelBuilder modelBuilder)
@@ -133,5 +135,7 @@ public sealed class BlogModule : ModuleBase
         new() { Key = "blog.tags.create",       DisplayName = "Blog Etiketi Olustur",         Description = "Yeni etiket yarat" },
         new() { Key = "blog.tags.edit",         DisplayName = "Blog Etiketi Duzenle",         Description = "Mevcut etiketi duzenle" },
         new() { Key = "blog.tags.delete",       DisplayName = "Blog Etiketi Sil",             Description = "Hard delete (junction cascade)" },
+        new() { Key = "blog.settings.view",      DisplayName = "Blog Ayarlarini Goruntule",    Description = "Blog modul ayarlari" },
+        new() { Key = "blog.settings.edit",      DisplayName = "Blog Ayarlarini Duzenle",      Description = "Blog modul ayarlarini kaydet" },
     ];
 }

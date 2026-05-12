@@ -20,4 +20,8 @@
     <PackageReference Include="Microsoft.EntityFrameworkCore" />
   </ItemGroup>
 
+  <ItemGroup>
+    <ProjectReference Include="..\Cms.Modules.Settings.Contracts\Cms.Modules.Settings.Contracts.csproj" />
+  </ItemGroup>
+
 </Project>

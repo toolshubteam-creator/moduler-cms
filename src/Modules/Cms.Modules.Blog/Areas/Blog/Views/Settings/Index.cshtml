@@ -1,0 +1,50 @@
+@model BlogSettingsFormModel
+@{
+    ViewData["Title"] = "Blog Ayarlari";
+}
+
+<h1>Blog Ayarlari</h1>
+
+@if (TempData["SuccessMessage"] is string ok)
+{
+    <div role="alert" style="color:green;">@ok</div>
+}
+
+<form asp-action="Index" method="post">
+    @Html.AntiForgeryToken()
+    <div asp-validation-summary="All" style="color:red;"></div>
+
+    <div>
+        <label asp-for="UrlPattern">URL Pattern</label>
+        <input asp-for="UrlPattern" />
+        <small>Orn: /blog/{slug} — {slug} placeholder kullanilabilir.</small>
+        <span asp-validation-for="UrlPattern" style="color:red;"></span>
+    </div>
+
+    <div>
+        <label asp-for="PostsPerPage">Sayfa Basi Yazi</label>
+        <input asp-for="PostsPerPage" type="number" min="1" max="100" />
+        <span asp-validation-for="PostsPerPage" style="color:red;"></span>
+    </div>
+
+    <div>
+        <label asp-for="DefaultMetaTitle">Varsayilan SEO Baslik</label>
+        <input asp-for="DefaultMetaTitle" />
+        <span asp-validation-for="DefaultMetaTitle" style="color:red;"></span>
+    </div>
+
+    <div>
+        <label asp-for="DefaultMetaDescription">Varsayilan SEO Aciklama</label>
+        <textarea asp-for="DefaultMetaDescription" rows="3" cols="60"></textarea>
+        <span asp-validation-for="DefaultMetaDescription" style="color:red;"></span>
+    </div>
+
+    <div>
+        <label>
+            <input asp-for="ShowExcerptInList" />
+            Listede ozet goster
+        </label>
+    </div>
+
+    <button type="submit">Kaydet</button>
+</form>

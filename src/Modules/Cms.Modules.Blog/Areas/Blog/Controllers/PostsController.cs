@@ -5,6 +5,7 @@ using System.Security.Claims;
 using Cms.Core.Authorization;
 using Cms.Modules.Blog.Areas.Blog.ViewModels;
 using Cms.Modules.Blog.Contracts;
+using Cms.Modules.Blog.Services;
 using Cms.Modules.Media.Contracts;
 using Cms.Modules.Seo.Contracts;
 using Microsoft.AspNetCore.Authorization;
@@ -16,17 +17,28 @@ public sealed class PostsController(
     IPostService posts,
     IMediaService mediaService,
     ISeoMetaService seoService,
-    ICategoryService categoryService) : Controller
+    ICategoryService categoryService,
+    IBlogSettingsReader blogSettingsReader) : Controller
 {
     private const string SeoTargetType = "blog.post";
 
     [HttpGet]
     [HasPermission("blog.posts.view")]
-    public async Task<IActionResult> Index(int skip = 0, int take = 50)
+    public async Task<IActionResult> Index(int page = 1)
     {
+        if (page < 1)
+        {
+            page = 1;
+        }
+        var snap = await blogSettingsReader.GetAsync(HttpContext.RequestAborted);
+        var take = snap.PostsPerPage;
+        var skip = (page - 1) * take;
+
         var list = await posts.ListAsync(skip, take, HttpContext.RequestAborted);
-        ViewData["Skip"] = skip;
-        ViewData["Take"] = take;
+
+        ViewData["CurrentPage"] = page;
+        ViewData["PageSize"] = take;
+        ViewData["HasMore"] = list.Count == take;
         return View(list);
     }
 
