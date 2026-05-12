@@ -200,6 +200,7 @@ Bir adım tamamlandı sayılır:
 - settings (v1.0.0, core) — tenant-scoped key-value config store
 - media (v1.0.0, core) — tenant-izole dosya upload/serve, SHA256 dedup, soft-delete
 - seo (v1.0.0, core) — target-based SEO meta storage + TagHelper, Settings default fallback
+- blog (v1.0.0, customer-type referans modul) — post + category + tag + Media/SEO/Settings entegrasyonu, IBlogSettingsReader snapshot pattern
 
 ## Referans Dokümanlar
 

@@ -188,6 +188,8 @@ Asagidakileri YAPMA — cekirdek davranisi bozar:
 - ❌ MVC parametre adlari icin `action` / `controller` / `area` — route token collision (Faz-3.2 FIX). `auditAction` + `[FromQuery(Name="act")]` gibi rename
 - ❌ Modul DLL'i tek `Copy($(TargetPath))` ile kopyalama — `.deps.json` ve transitif `.dll`'ler eksik kalir, AssemblyDependencyResolver runtime'da fail eder (Faz-4.1 FIX). `src/Modules/Directory.Build.targets` glob pattern (`$(TargetDir)*.dll`, `$(TargetDir)*.deps.json`) kullanir; modul yazarinin csproj'a Copy target eklemesine gerek yok (Directory.Build.targets her `src/Modules/*` projeye otomatik uygulanir).
 - ❌ Cross-module reference icin hedef modulun ana projesine ProjectReference atma — sadece `Cms.Modules.X.Contracts` projesine referans verilir (CLAUDE.md Kural 5). Contracts.dll'leri host start'inda Default AssemblyLoadContext'e eagerly yuklenir (ModuleHostExtensions); modul yazarinin ek ALC konfigurasyonuna gerek yok (Faz-4.3 FIX).
+- ❌ Migration scaffold sonrasi `dotnet run --no-build` ile baslatma — stale Debug binary'ler yeni migration'i tasimaz; runtime "success" loglasa da migration uygulanmamis kalir (Faz-5.2 FIX). `dotnet build` once, sonra `dotnet run --project src/Cms.Web` veya `dotnet watch run`.
+- ❌ Modul-spesifik setting'leri controller'da dogrudan `ISettingsService.GetAsync<int>("blog.posts_per_page")` ile cekme — default fallback ve validation logic her cagri yerinde tekrarlanir. Internal reader service (orn. `IBlogSettingsReader`) ile snapshot pattern kullan (Faz-5.3).
 
 ## 7. Audit Restore Davranisi
 
@@ -214,7 +216,8 @@ Modul A'nin Modul B'den okumasi — Sadece B'nin Contracts projesine referans:
 ```
 
 ```csharp
-// SeoMetaService.cs
+// SeoMetaService.cs — SeoMetaInput gercek imza: (Title, Description, OgImage, Canonical, Robots)
+// Keywords ve CanonicalUrl YOK; Faz-5.3'te Blog→SEO entegrasyonunda kanitlandi.
 public sealed class SeoMetaService(TenantDbContext db, ISettingsService settings) : ISeoMetaService
 {
     public async Task<SeoMetaResolved> ResolveAsync(string targetType, string targetId, CancellationToken ct = default)
@@ -234,6 +237,49 @@ Onemli noktalar:
 - Contracts type identity: `Cms.Modules.*.Contracts.dll`'leri host start'inda Default ALC'ye eagerly yuklenir (`ModuleHostExtensions.UseCmsModules`); birden cok modul ayni interface'i paylasir. Manuel ALC konfigurasyonu gerekmez.
 - Servis sirasi: hedef modul (B) `RegisterServices`'inde implementasyonu DI'ye eklemeli; modul yukleme sirasi `IsCorePlugin` + `Manifest.Dependencies` ile topological sort yapilir. Bagimlilik bildirimi yoksa alfabetik discovery sirasi gecerlidir — DI build sirasinda tum modul registration'lari toplandiktan sonra resolution yapildigi icin sirasi onemsiz.
 
+### Blog→Settings (Faz-5.3): birden cok Contracts referansi
+
+Blog modulu hem Media.Contracts (FeaturedMediaId validation), hem Seo.Contracts (inline SEO meta), hem Settings.Contracts (modul-spesifik ayarlar) referansina sahiptir. Pattern her cifte ayni:
+
+- `Cms.Modules.Blog.csproj` → ProjectReference `Cms.Modules.{Media,Seo,Settings}.Contracts`
+- `Manifest.Dependencies` bildirimi: `["media", "seo", "settings"]`
+- Ana proje (`Cms.Modules.Settings` vb.) ile referans YOK
+- Contracts.dll'leri host start'inda Default ALC'ye eagerly yuklenir (`ModuleHostExtensions` glob)
+- Modul-spesifik setting'ler icin **internal IBlogSettingsReader pattern**: `ISettingsService` cagri detayini kapsulle, default fallback + validation reader'da:
+
+```csharp
+// Blog/Services/IBlogSettingsReader.cs
+public interface IBlogSettingsReader
+{
+    Task<BlogSettingsSnapshot> GetAsync(CancellationToken ct = default);
+}
+
+// Blog/Services/BlogSettingsReader.cs
+public sealed class BlogSettingsReader(ISettingsService settings) : IBlogSettingsReader
+{
+    public async Task<BlogSettingsSnapshot> GetAsync(CancellationToken ct = default)
+    {
+        var raw = await settings.GetAsync<int?>(BlogSettingKeys.PostsPerPage, ct);
+        var posts = raw ?? BlogSettingDefaults.PostsPerPage;
+        if (posts < 1 || posts > 100) posts = BlogSettingDefaults.PostsPerPage;
+        // ...
+        return new BlogSettingsSnapshot(...);
+    }
+}
+```
+
+Modul-spesifik settings key konvansiyonu: `{module_id}.{setting_name}` (orn. `blog.posts_per_page`).
+
+## 7.2 Test stratejisi — DateTime precision (Faz-5.1 kalibre noktasi)
+
+MySQL `datetime(6)` mikrosaniye precision; in-memory `DateTime.UtcNow` ticks daha hassas. Integration test'lerde Create sonrasi entity'yi GetAsync ile DB-round-trip aldiktan sonra timestamp karsilastir; aksi takdirde `result.Should().Be(expected)` flaky olur.
+
+```csharp
+var created = await service.CreateAsync(req, ct);
+var fromDb  = await service.GetAsync(created.Id, ct);   // baseline
+// sonra fromDb.PublishedAt ile karsilastirmalar yap
+```
+
 ## 8. Ozet Tablo
 
 | Marker / Konvansiyon | Tetikledigi Davranis |
@@ -243,3 +289,5 @@ Onemli noktalar:
 | `[AuditIgnore]` | Property audit JSON'undan dislanir |
 | Tablo prefix `Module_*` | CLAUDE.md Kural 4 |
 | Permission key `module_id.x.y` | Cache + seeder validation |
+| `{module_id}.x.y` setting key | Modul-spesifik config; reader pattern ile snapshot |
+| Migration scaffold + `--no-build` | YASAK; debug rebuild zorunlu |
